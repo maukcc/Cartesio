@@ -15,6 +15,7 @@
 // LCD Menu Messages
 
 	#define WELCOME_MSG "Printer Ready."
+	#define MSG_STANDBY_TEMP "Standby temp set for: "
 	#define MSG_SD_INSERTED "Card inserted"
 	#define MSG_SD_REMOVED "Card removed"
 	#define MSG_MAIN " Main \003"

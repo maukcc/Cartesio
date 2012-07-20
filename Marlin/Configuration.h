@@ -2,15 +2,27 @@
 #define CONFIGURATION_H
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
-#define REPRAPPRO_HUXLEY
+//#define REPRAPPRO_HUXLEY
 //#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
+
+// Uncomment ONE of the next two lines - the one for your controller electronics
+//#define REPRAPPRO_MELZI
+//#define REPRAPPRO_SANGUINOLOLU
+
+// ==============================================================================
 
 #ifndef REPRAPPRO_HUXLEY
 #ifndef REPRAPPRO_MENDEL
 #ifndef REPRAPPRO_WALLACE
 #error Uncomment one of #define REPRAPPRO_HUXLEY, REPRAPPRO_MENDEL or REPRAPPRO_WALLACE at the start of the file Configuration.h
 #endif
+#endif
+#endif
+
+#ifndef REPRAPPRO_MELZI
+#ifndef REPRAPPRO_SANGUINOLOLU
+#error Uncomment one of #define REPRAPPRO_MELZI or REPRAPPRO_SANGUINOLOLU at the start of the file Configuration.h
 #endif
 #endif
 
@@ -25,7 +37,7 @@
 //User specified version info of THIS file to display in [Pronterface, etc] terminal window during startup.
 //Implementation of an idea by Prof Braino to inform user that any changes made
 //to THIS file by the user have been successfully uploaded into firmware.
-#define STRING_VERSION_CONFIG_H "2012-06-25-1" //Personal revision number for changes to THIS file.
+#define STRING_VERSION_CONFIG_H "2012-07-20-1-AB" //Personal revision number for changes to THIS file.
 #define STRING_CONFIG_H_AUTHOR "RepRapPro" //Who made the changes.
 
 // This determines the communication speed of the printer
@@ -47,7 +59,16 @@
 // Ultimaker = 7
 // Teensylu = 8
 // Gen3+ =9
+
+#ifdef REPRAPPRO_SANGUINOLOLU
 #define MOTHERBOARD 62
+#endif
+
+#ifdef REPRAPPRO_MELZI
+#define MOTHERBOARD 63
+#endif
+
+
 
 //===========================================================================
 //=============================Thermal Settings  ============================
@@ -55,7 +76,7 @@
 
 // Set this if you want to define the constants in the thermistor circuit
 // and work out temperatures algebraically - added by AB.
-//#define COMPUTE_THERMISTORS
+#define COMPUTE_THERMISTORS
 
 #ifdef COMPUTE_THERMISTORS
 
@@ -74,18 +95,37 @@
 
 // This DOES assume that all extruders use the same thermistor type.
 
+
+// Old Melzis have 10K temp series resistors.  New should be 4K7.
+#ifdef REPRAPPRO_MELZI
+#define SERIAL_R 10000
+#else
+#define SERIAL_R 4700
+#endif
+
 #define ABS_ZERO -273.15
 #define AD_RANGE 16383
 
 // RS 198-961
 #define E_BETA 3960.0
-#define E_RS 4700.0
+#define E_RS SERIAL_R
 #define E_R_INF ( 100000.0*exp(-E_BETA/298.15) )
 
+
+#ifdef REPRAPPRO_MENDEL
 // RS 484-0149; EPCOS B57550G103J
 #define BED_BETA 3480.0
-#define BED_RS 4700.0
+#define BED_RS SERIAL_R
 #define BED_R_INF ( 10000.0*exp(-BED_BETA/298.15) )
+#endif
+
+#ifdef REPRAPPRO_HUXLEY
+// VISHAY BC COMPONENTS - NTCS0603E3104FXT
+#define BED_BETA 4100.0
+#define BED_RS SERIAL_R
+#define BED_R_INF ( 100000.0*exp(-BED_BETA/298.15) )
+#endif
+
 
 #define BED_USES_THERMISTOR
 #define HEATER_0_USES_THERMISTOR
@@ -259,7 +299,17 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 // default settings 
 
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286,4000,875}                    // default steps per unit for ultimaker 
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286,4000,875}                    // default steps per unit for ultimaker
+
+// Defaults changed by the G10 command
+
+#define X_EXTRUDER_OFFSET 0
+#define Y_EXTRUDER_OFFSET 0
+#define Z_EXTRUDER_OFFSET 0
+#define STANDBY_TEMP 140
+#define PLA_TEMP 205
+#define ABS_TEMP 250
+#define DEFAULT_TEMP PLA_TEMP
 
 
 #define DEFAULT_ACCELERATION          1000    // X, Y, Z and E max acceleration in mm/s^2 for printing moves 

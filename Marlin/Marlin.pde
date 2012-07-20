@@ -24,6 +24,15 @@
  It has preliminary support for Matthew Roberts advance algorithm 
     http://reprap.org/pipermail/reprap-dev/2011-May/003323.html
  */
+ 
+/*
+  RepRapPro ammendations and additions
+  
+  G10, M0, M1, M112 and T commands added/modified by AB 18/7/12
+  
+*/
+
+
 
 #include "Marlin.h"
 
@@ -41,7 +50,7 @@
 #include "language.h"
 #include "pins_arduino.h"
 
-#define VERSION_STRING  "1.0.0 RC2"
+#define VERSION_STRING  "1.0.1 RRP"
 
 // look here for descriptions of gcodes: http://linuxcnc.org/handbook/gcode/g-code.html
 // http://objects.reprap.org/wiki/Mendel_User_Manual:_RepRapGCodes
@@ -53,6 +62,7 @@
 // G2  - CW ARC
 // G3  - CCW ARC
 // G4  - Dwell S<seconds> or P<milliseconds>
+// G10 - set head offset and temps
 // G28 - Home all Axis
 // G29 - Detailed Z-Probe (3 location test)
 // G30 - Single Z Probe (probe current location)
@@ -63,11 +73,11 @@
 // G92 - Set current position to cordinates given
 
 //RepRap M Codes
-// M104 - Set extruder target temp
+// M104 - Set extruder target temp (deprecated)
 // M105 - Read current temp
 // M106 - Fan on
 // M107 - Fan off
-// M109 - Wait for extruder current temp to reach target temp.
+// M109 - Wait for extruder current temp to reach target temp. (deprecated)
 // M114 - Display current position
 
 //Custom M Codes
@@ -125,6 +135,8 @@
 // M512 - FPU Disable
 // M999 - Restart after being stopped by error
 
+// TN - Select extruder N
+
 //Stepper Movement Variables
 
 //===========================================================================
@@ -148,6 +160,18 @@ volatile int extrudemultiply=100; //100->1 200->2
 float current_position[NUM_AXIS] = { 0.0, 0.0, 0.0, 0.0 };
 float add_homeing[3]={0,0,0};
 uint8_t active_extruder = 0;
+float extruder_x_off[EXTRUDERS];
+float extruder_y_off[EXTRUDERS];
+float extruder_z_off[EXTRUDERS];
+float extruder_standby[EXTRUDERS];
+float extruder_temperature[EXTRUDERS];
+float x_off_d;
+float y_off_d;
+float z_off_d;
+float temp_position[NUM_AXIS] = { 0.0, 0.0, 0.0, 0.0 };
+
+
+
 unsigned char FanSpeed=0;
 
 float destination[NUM_AXIS] = {  0.0, 0.0, 0.0, 0.0};
@@ -273,6 +297,16 @@ void setup()
   MYSERIAL.begin(BAUDRATE);
   SERIAL_PROTOCOLLNPGM("start");
   SERIAL_ECHO_START;
+  
+  for(int8_t i = 0; i < EXTRUDERS; i++)
+  {
+    extruder_x_off[i] = X_EXTRUDER_OFFSET;
+    extruder_y_off[i] = Y_EXTRUDER_OFFSET;
+    extruder_z_off[i] = Z_EXTRUDER_OFFSET;
+    extruder_standby[i] = STANDBY_TEMP;
+    extruder_temperature[i] = DEFAULT_TEMP;
+  }
+
 
   // Check startup - does nothing if bootloader sets MCUSR to 0
   byte mcu = MCUSR;
@@ -574,6 +608,65 @@ bool code_seen(char code)
     feedrate = 0.0;\
     endstops_hit_on_purpose();\
   }
+  
+void wait_for_temp(uint8_t& t_ext, unsigned long& codenum)
+{
+        /* See if we are heating up or cooling down */
+      bool target_direction = isHeatingHotend(t_ext); // true if heating, false if cooling
+
+      #ifdef TEMP_RESIDENCY_TIME
+        long residencyStart;
+        residencyStart = -1;
+        /* continue to loop until we have reached the target temp   
+          _and_ until TEMP_RESIDENCY_TIME hasn't passed since we reached it */
+        while((residencyStart == -1) ||
+              (residencyStart >= 0 && (((unsigned int) (millis() - residencyStart)) < (TEMP_RESIDENCY_TIME * 1000UL))) ) 
+        {
+      #else
+        while ( target_direction ? (isHeatingHotend(t_ext)) : (isCoolingHotend(tmp_extruder)&&(CooldownNoWait==false)) ) 
+        {
+      #endif //TEMP_RESIDENCY_TIME
+          if( (millis() - codenum) > 1000UL )
+          { //Print Temp Reading and remaining time every 1 second while heating up/cooling down
+            SERIAL_PROTOCOLPGM("T:");
+            SERIAL_PROTOCOL_F(degHotend(t_ext),1); 
+            SERIAL_PROTOCOLPGM(" E:");
+            SERIAL_PROTOCOL( (int)t_ext ); 
+            #ifdef TEMP_RESIDENCY_TIME
+              SERIAL_PROTOCOLPGM(" W:");
+              if(residencyStart > -1)
+              {
+                 codenum = ((TEMP_RESIDENCY_TIME * 1000UL) - (millis() - residencyStart)) / 1000UL;
+                 SERIAL_PROTOCOLLN( codenum );
+              } else 
+              {
+                 SERIAL_PROTOCOLLN( "?" );
+              }
+            #else
+              SERIAL_PROTOCOLLN("");
+            #endif
+            codenum = millis();
+          }
+          manage_heater();
+          manage_inactivity(1);
+          LCD_STATUS;
+          LED_STATUS;
+        #ifdef TEMP_RESIDENCY_TIME
+            /* start/restart the TEMP_RESIDENCY_TIME timer whenever we reach target temp for the first time
+              or when current temp falls outside the hysteresis after target temp was reached */
+          if ((residencyStart == -1 &&  target_direction && (degHotend(t_ext) >= (degTargetHotend(t_ext)-TEMP_WINDOW))) ||
+              (residencyStart == -1 && !target_direction && (degHotend(t_ext) <= (degTargetHotend(t_ext)+TEMP_WINDOW))) ||
+              (residencyStart > -1 && labs(degHotend(t_ext) - degTargetHotend(t_ext)) > TEMP_HYSTERESIS) ) 
+          {
+            residencyStart = millis();
+          }
+        #endif //TEMP_RESIDENCY_TIME
+        }
+        LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
+        starttime=millis();
+        previous_millis_cmd = millis();
+}
+  
 
 void process_commands()
 {
@@ -619,6 +712,22 @@ void process_commands()
         manage_inactivity(1);
       }
       break;
+      
+      case 10: // Set offsets
+      if(code_seen('P'))
+      {
+         tmp_extruder = code_value();
+         get_coordinates();
+         extruder_x_off[tmp_extruder] = destination[0]; // X
+         extruder_y_off[tmp_extruder] = destination[1]; // Y
+         extruder_z_off[tmp_extruder] = destination[2]; // Z
+         if(code_seen('R'))
+             extruder_standby[tmp_extruder] = code_value();
+         if(code_seen('S'))
+             extruder_temperature[tmp_extruder] = code_value();
+      }
+      break;
+  
     case 28: //G28 Home all Axis one at a time
       saved_feedrate = feedrate;
       saved_feedmultiply = feedmultiply;
@@ -744,6 +853,11 @@ void process_commands()
   {
     switch( (int)code_value() ) 
     {
+    case 0: // Stops - add me...
+    case 1:
+    case 112:
+      break;
+
     case 17:
         LCD_MESSAGEPGM(MSG_NO_MOVE);
         enable_x(); 
@@ -876,7 +990,11 @@ void process_commands()
           break;
         }
       }
-      if (code_seen('S')) setTargetHotend(code_value(), tmp_extruder);
+      if (code_seen('S'))
+      {
+         extruder_temperature[tmp_extruder] = code_value();
+         setTargetHotend(code_value(), tmp_extruder);
+      }
       setWatch();
       break;
     case 140: // M140 set bed temp
@@ -916,7 +1034,7 @@ void process_commands()
       return;
       break;
     case 109: 
-    {// M109 - Wait for extruder heater to reach target.
+    // M109 - Wait for extruder heater to reach target.
       tmp_extruder = active_extruder;
       if(code_seen('T')) {
         tmp_extruder = code_value();
@@ -931,7 +1049,12 @@ void process_commands()
       #ifdef AUTOTEMP
         autotemp_enabled=false;
       #endif
-      if (code_seen('S')) setTargetHotend(code_value(), tmp_extruder);
+      if (code_seen('S'))
+      {
+        extruder_temperature[tmp_extruder] = code_value();
+        setTargetHotend(code_value(), tmp_extruder);
+      }
+
       #ifdef AUTOTEMP
         if (code_seen('S')) autotemp_min=code_value();
         if (code_seen('B')) autotemp_max=code_value();
@@ -944,61 +1067,7 @@ void process_commands()
       
       setWatch();
       codenum = millis(); 
-
-      /* See if we are heating up or cooling down */
-      bool target_direction = isHeatingHotend(tmp_extruder); // true if heating, false if cooling
-
-      #ifdef TEMP_RESIDENCY_TIME
-        long residencyStart;
-        residencyStart = -1;
-        /* continue to loop until we have reached the target temp   
-          _and_ until TEMP_RESIDENCY_TIME hasn't passed since we reached it */
-        while((residencyStart == -1) ||
-              (residencyStart >= 0 && (((unsigned int) (millis() - residencyStart)) < (TEMP_RESIDENCY_TIME * 1000UL))) ) {
-      #else
-        while ( target_direction ? (isHeatingHotend(tmp_extruder)) : (isCoolingHotend(tmp_extruder)&&(CooldownNoWait==false)) ) {
-      #endif //TEMP_RESIDENCY_TIME
-          if( (millis() - codenum) > 1000UL )
-          { //Print Temp Reading and remaining time every 1 second while heating up/cooling down
-            SERIAL_PROTOCOLPGM("T:");
-            SERIAL_PROTOCOL_F(degHotend(tmp_extruder),1); 
-            SERIAL_PROTOCOLPGM(" E:");
-            SERIAL_PROTOCOL((int)tmp_extruder); 
-            #ifdef TEMP_RESIDENCY_TIME
-              SERIAL_PROTOCOLPGM(" W:");
-              if(residencyStart > -1)
-              {
-                 codenum = ((TEMP_RESIDENCY_TIME * 1000UL) - (millis() - residencyStart)) / 1000UL;
-                 SERIAL_PROTOCOLLN( codenum );
-              }
-              else 
-              {
-                 SERIAL_PROTOCOLLN( "?" );
-              }
-            #else
-              SERIAL_PROTOCOLLN("");
-            #endif
-            codenum = millis();
-          }
-          manage_heater();
-          manage_inactivity(1);
-          LCD_STATUS;
-          LED_STATUS;
-        #ifdef TEMP_RESIDENCY_TIME
-            /* start/restart the TEMP_RESIDENCY_TIME timer whenever we reach target temp for the first time
-              or when current temp falls outside the hysteresis after target temp was reached */
-          if ((residencyStart == -1 &&  target_direction && (degHotend(tmp_extruder) >= (degTargetHotend(tmp_extruder)-TEMP_WINDOW))) ||
-              (residencyStart == -1 && !target_direction && (degHotend(tmp_extruder) <= (degTargetHotend(tmp_extruder)+TEMP_WINDOW))) ||
-              (residencyStart > -1 && labs(degHotend(tmp_extruder) - degTargetHotend(tmp_extruder)) > TEMP_HYSTERESIS) ) 
-          {
-            residencyStart = millis();
-          }
-        #endif //TEMP_RESIDENCY_TIME
-        }
-        LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
-        starttime=millis();
-        previous_millis_cmd = millis();
-      }
+      wait_for_temp(tmp_extruder, codenum);
       break;
     case 190: // M190 - Wait for bed heater to reach target.
     #if TEMP_BED_PIN > -1
@@ -1353,19 +1422,69 @@ void process_commands()
   else if(code_seen('T')) 
   {
     tmp_extruder = code_value();
-    if(tmp_extruder >= EXTRUDERS) {
+    if(tmp_extruder >= EXTRUDERS) 
+    {
       SERIAL_ECHO_START;
-      SERIAL_ECHO("T");
-      SERIAL_ECHO(tmp_extruder);
-      SERIAL_ECHOLN(MSG_INVALID_EXTRUDER);
+      SERIAL_ECHO(MSG_STANDBY_TEMP);
+      SERIAL_ECHO(active_extruder);
+      setTargetHotend(extruder_standby[active_extruder], active_extruder);
     }
-    else {
+    else 
+    {
+      setTargetHotend(extruder_standby[active_extruder], active_extruder);
+      
+      // Deal with offsets here:  record current pos as temp_position; 
+      // move to temp_position + tmp_extruder - active_extruder; 
+      // Set current pos to be temp_position
+      // TOTHINKABOUT: What about cumulative errors with a LOT of extruder changes?
+      
+      for(int8_t i=0; i < NUM_AXIS; i++) 
+      {
+        temp_position[i] = current_position[i];
+        destination[i] = current_position[i];
+      }
+      next_feedrate = feedrate;
+      x_off_d = extruder_x_off[tmp_extruder] - extruder_x_off[active_extruder];
+      y_off_d = extruder_y_off[tmp_extruder] - extruder_y_off[active_extruder];
+      z_off_d = extruder_z_off[tmp_extruder] - extruder_z_off[active_extruder];      
+      
+      if(z_off_d >= 0)
+      {
+        destination[Z_AXIS] += z_off_d;
+        feedrate = fast_home_feedrate[Z_AXIS];
+        prepare_move();
+        destination[X_AXIS] = temp_position[X_AXIS] + x_off_d;
+        destination[Y_AXIS] = temp_position[Y_AXIS] + y_off_d;
+        feedrate = fast_home_feedrate[X_AXIS];        
+        prepare_move();
+      } else
+      {
+        destination[X_AXIS] += x_off_d;
+        destination[Y_AXIS] += y_off_d;
+        feedrate = fast_home_feedrate[X_AXIS];
+        prepare_move();
+        destination[Z_AXIS] = temp_position[Z_AXIS] + z_off_d;
+        feedrate = fast_home_feedrate[Z_AXIS];
+        prepare_move();      
+      }
+      
+      for(int8_t i=0; i < NUM_AXIS; i++) 
+        current_position[i] = temp_position[i];
+      feedrate = next_feedrate;
       active_extruder = tmp_extruder;
+      
       SERIAL_ECHO_START;
       SERIAL_ECHO(MSG_ACTIVE_EXTRUDER);
       SERIAL_PROTOCOLLN((int)active_extruder);
+      
+      setTargetHotend(extruder_temperature[active_extruder], active_extruder);
+      
+      setWatch();
+      codenum = millis(); 
+      wait_for_temp(active_extruder, codenum);
     }
   }
+
 
   else
   {
