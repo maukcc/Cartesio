@@ -169,7 +169,7 @@ float x_off_d;
 float y_off_d;
 float z_off_d;
 float temp_position[NUM_AXIS] = { 0.0, 0.0, 0.0, 0.0 };
-
+bool extruder_selected=false;
 
 
 unsigned char FanSpeed=0;
@@ -1431,7 +1431,10 @@ void process_commands()
     }
     else 
     {
+      if((tmp_extruder != active_extruder) || !extruder_selected)
+      {
       setTargetHotend(extruder_standby[active_extruder], active_extruder);
+      extruder_selected = true;
       
       // Deal with offsets here:  record current pos as temp_position; 
       // move to temp_position + tmp_extruder - active_extruder; 
@@ -1482,6 +1485,7 @@ void process_commands()
       setWatch();
       codenum = millis(); 
       wait_for_temp(active_extruder, codenum);
+      }
     }
   }
 

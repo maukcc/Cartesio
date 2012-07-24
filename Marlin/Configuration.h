@@ -2,12 +2,12 @@
 #define CONFIGURATION_H
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
-//#define REPRAPPRO_HUXLEY
+#define REPRAPPRO_HUXLEY
 //#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
 
 // Uncomment ONE of the next two lines - the one for your controller electronics
-//#define REPRAPPRO_MELZI
+#define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
 
 // ==============================================================================
