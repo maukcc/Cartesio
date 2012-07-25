@@ -3,6 +3,8 @@
 
 #include "Marlin.h"
 
+#ifndef COMPUTE_THERMISTORS
+
 #define OVERSAMPLENR 16
 
 #if (THERMISTORHEATER_0 == 1) || (THERMISTORHEATER_1 == 1)  || (THERMISTORHEATER_2 == 1) || (THERMISTORBED == 1) //100k bed thermistor
@@ -621,6 +623,8 @@ const short temptable_111[][2] PROGMEM = {
   #error No bed thermistor table specified
 #endif // BED_USES_THERMISTOR
 #endif
+
+#endif //COMPUTE_THERMISTORS
 
 #endif //THERMISTORTABLES_H_
 

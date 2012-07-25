@@ -23,6 +23,78 @@
 
 #include "planner.h"
 
+#ifdef REPRAPPRO_MULTIMATERIALS
+
+inline void write_remote_step(int8_t extruder, int8_t v)
+{
+
+}
+
+inline void write_remote_dir(int8_t extruder, bool forward)
+{
+
+}
+
+
+#define WRITE_E_STEP(v) { if(current_block->active_extruder == 2) { write_remote_step(2, v); } else { if(current_block->active_extruder == 1) { write_remote_step(1, v); } else { WRITE(E0_STEP_PIN, v); }}}
+#define NORM_E_DIR() { if(current_block->active_extruder == 2) { write_remote_dir(2, true); } else { if(current_block->active_extruder == 1) { write_remote_dir(1, true); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}}
+#define REV_E_DIR() { if(current_block->active_extruder == 2) { write_remote_dir(2, false); } else { if(current_block->active_extruder == 1) { write_remote_dir(1, false); } else { WRITE(E0_DIR_PIN, INVERT_E0_DIR); }}}
+
+
+/*
+inline void WRITE_E_STEP(int8_t v) 
+{ 
+	if(current_block->active_extruder == 2) 
+	{ 
+		write_remote_step(2, v);  //E2_STEP_PIN, v); 
+	} else 
+	{ 
+		if(current_block->active_extruder == 1) 
+		{ 
+			write_remote_step(1, v); //E1_STEP_PIN, v); 
+		} else 
+		{ 
+			WRITE(E0_STEP_PIN, v); 
+		}
+	}
+}
+
+inline void NORM_E_DIR() 
+{ 
+	if(current_block->active_extruder == 2) 
+	{ 
+		write_remote_dir(2, true); //!E2_DIR_PIN, INVERT_E2_DIR); 
+	} else 
+	{ 
+		if(current_block->active_extruder == 1) 
+		{ 
+			write_remote_dir(1, true); //!E1_DIR_PIN, INVERT_E1_DIR); 
+		} else 
+		{ 
+			WRITE(E0_DIR_PIN, !INVERT_E0_DIR); 
+		}
+	}
+}
+
+inline void REV_E_DIR() 
+{ 
+	if(current_block->active_extruder == 2) 
+	{ 
+		write_remote_dir(2, false); //E2_DIR_PIN, INVERT_E2_DIR); 
+	} else 
+	{ 
+		if(current_block->active_extruder == 1) 
+		{ 
+			write_remote_dir(1, false); //E1_DIR_PIN, INVERT_E1_DIR); 
+		} else 
+		{ 
+			WRITE(E0_DIR_PIN, INVERT_E0_DIR); 
+		}
+	}
+}
+*/
+#else
+
 #if EXTRUDERS > 2
   #define WRITE_E_STEP(v) { if(current_block->active_extruder == 2) { WRITE(E2_STEP_PIN, v); } else { if(current_block->active_extruder == 1) { WRITE(E1_STEP_PIN, v); } else { WRITE(E0_STEP_PIN, v); }}}
   #define NORM_E_DIR() { if(current_block->active_extruder == 2) { WRITE(!E2_DIR_PIN, INVERT_E2_DIR); } else { if(current_block->active_extruder == 1) { WRITE(!E1_DIR_PIN, INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}}
@@ -36,6 +108,9 @@
   #define NORM_E_DIR() WRITE(E0_DIR_PIN, !INVERT_E0_DIR)
   #define REV_E_DIR() WRITE(E0_DIR_PIN, INVERT_E0_DIR)
 #endif
+
+#endif
+
 
 
 // Initialize and start the stepper motor subsystem

@@ -96,6 +96,8 @@ static unsigned long  previous_millis_bed_heater;
   static int maxttemp[EXTRUDERS] = { 16383 }; // the first value used for all
   static int bed_minttemp = 0;
   static int bed_maxttemp = 16383;
+  
+#ifndef COMPUTE_THERMISTORS  
   static void *heater_ttbl_map[EXTRUDERS] = { (void *)heater_0_temptable
 #if EXTRUDERS > 1
                                             , (void *)heater_1_temptable
@@ -118,7 +120,7 @@ static unsigned long  previous_millis_bed_heater;
   #error Unsupported number of extruders
 #endif
   };
-
+#endif //COMPUTE_THERMISTORS
 //===========================================================================
 //=============================   functions      ============================
 //===========================================================================
@@ -377,6 +379,9 @@ void manage_heater()
 
 #define PGM_RD_W(x)   (short)pgm_read_word(&x)
 
+
+
+
 #ifdef COMPUTE_THERMISTORS
 // Use algebra to work out temperatures, not tables
 // NB - this assumes all extruders use the same thermistor type.
@@ -392,10 +397,44 @@ float analog2tempi(int raw, const float& beta, const float& rs, const float& r_i
    return ABS_ZERO + beta/log( (rawf*rs/(AD_RANGE - rawf))/r_inf );
 }
 
-int temp2analog(int celsius, uint8_t e) { return temp2analogi(celsius, E_BETA, E_RS, E_R_INF); }
-int temp2analogBed(int celsius) { return temp2analogi(celsius, BED_BETA, BED_RS, BED_R_INF); }
-float analog2temp(int raw, uint8_t e) { return analog2tempi(raw, E_BETA, E_RS, E_R_INF); }
-float analog2tempBed(int raw) { return analog2tempi(raw, BED_BETA, BED_RS, BED_R_INF); }
+
+#ifdef REPRAPPRO_MULTIMATERIALS
+// TODO Put some code in here...
+
+float analog2temp_remote(uint8_t e)
+{
+	return 20;
+}
+
+int temp2analog_remote(int celsius, uint8_t e)
+{
+	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF);
+}
+#endif
+
+
+int temp2analog(int celsius, uint8_t e) 
+{
+#ifdef REPRAPPRO_MULTIMATERIALS
+	if(e > 0) return temp2analog_remote(celsius, e);
+#endif
+	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF); 
+}
+int temp2analogBed(int celsius) 
+{
+	return temp2analogi(celsius, BED_BETA, BED_RS, BED_R_INF); 
+}
+float analog2temp(int raw, uint8_t e) 
+{
+#ifdef REPRAPPRO_MULTIMATERIALS
+	if(e > 0) return analog2temp_remote(e);
+#endif
+	return analog2tempi(raw, E_BETA, E_RS, E_R_INF); 
+}
+float analog2tempBed(int raw) 
+{ 
+	return analog2tempi(raw, BED_BETA, BED_RS, BED_R_INF); 
+}
 
 #else
 
@@ -555,7 +594,7 @@ float analog2tempBed(int raw) {
   #endif
 }
 
-#endif
+#endif //COMPUTE_THERMISTORS
 
 void tp_init()
 {
@@ -835,6 +874,9 @@ ISR(TIMER0_COMPB_vect)
   if(pwm_count == 0){
     soft_pwm_0 = soft_pwm[0];
     if(soft_pwm_0 > 0) WRITE(HEATER_0_PIN,1);
+    #ifdef REPRAPPRO_MULTIMATERIALS
+        // Nothing to do here - remote handles it
+    #else
     #if EXTRUDERS > 1
     soft_pwm_1 = soft_pwm[1];
     if(soft_pwm_1 > 0) WRITE(HEATER_1_PIN,1);
@@ -843,15 +885,19 @@ ISR(TIMER0_COMPB_vect)
     soft_pwm_2 = soft_pwm[2];
     if(soft_pwm_2 > 0) WRITE(HEATER_2_PIN,1);
     #endif
+    #endif
   }
   if(soft_pwm_0 <= pwm_count) WRITE(HEATER_0_PIN,0);
+  #ifdef REPRAPPRO_MULTIMATERIALS
+    // Nothing to do here - remote handles it
+  #else  
   #if EXTRUDERS > 1
   if(soft_pwm_1 <= pwm_count) WRITE(HEATER_1_PIN,0);
   #endif
   #if EXTRUDERS > 2
   if(soft_pwm_2 <= pwm_count) WRITE(HEATER_2_PIN,0);
   #endif
-  
+  #endif
   pwm_count++;
   pwm_count &= 0x7f;
   

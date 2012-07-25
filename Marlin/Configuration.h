@@ -2,13 +2,16 @@
 #define CONFIGURATION_H
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
-#define REPRAPPRO_HUXLEY
+//#define REPRAPPRO_HUXLEY
 //#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
 
-// Uncomment ONE of the next two lines - the one for your controller electronics
-#define REPRAPPRO_MELZI
+// Uncomment ONE of the next two lines - the one for your master controller electronics
+//#define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
+
+// Uncomment the next line if your machine has more than one extruder
+#define REPRAPPRO_MULTIMATERIALS
 
 // ==============================================================================
 
@@ -129,8 +132,8 @@
 
 #define BED_USES_THERMISTOR
 #define HEATER_0_USES_THERMISTOR
-//#define HEATER_1_USES_THERMISTOR
-//#define HEATER_2_USES_THERMISTOR
+#define HEATER_1_USES_THERMISTOR
+#define HEATER_2_USES_THERMISTOR
 
 #endif
 
@@ -169,16 +172,20 @@
 // to check that the wiring to the thermistor is not broken. 
 // Otherwise this would lead to the heater being powered on all the time.
 #define HEATER_0_MINTEMP 1
-//#define HEATER_1_MINTEMP 5
-//#define HEATER_2_MINTEMP 5
+#ifdef REPRAPPRO_MULTIMATERIALS
+#define HEATER_1_MINTEMP 1
+#define HEATER_2_MINTEMP 1
+#endif
 #define BED_MINTEMP 1
 
 // When temperature exceeds max temp, your heater will be switched off.
 // This feature exists to protect your hotend from overheating accidentally, but *NOT* from thermistor short/failure!
 // You should use MINTEMP for thermistor short/failure protection.
 #define HEATER_0_MAXTEMP 399
-//#define HEATER_1_MAXTEMP 275
-//#define HEATER_2_MAXTEMP 275
+#ifdef REPRAPPRO_MULTIMATERIALS
+#define HEATER_1_MAXTEMP 275
+#define HEATER_2_MAXTEMP 275
+#endif
 #define BED_MAXTEMP 150
 
 
@@ -222,6 +229,8 @@
 #define PREVENT_DANGEROUS_EXTRUDE
 #define EXTRUDE_MINTEMP 170
 #define EXTRUDE_MAXLENGTH (X_MAX_LENGTH+Y_MAX_LENGTH) //prevent extrusion of very large distances.
+#else
+#define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 #endif
 
 //===========================================================================

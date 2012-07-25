@@ -72,7 +72,11 @@
 //===========================================================================
 
 // This defines the number of extruders
+#ifdef REPRAPPRO_MULTIMATERIALS
+#define EXTRUDERS 3
+#else
 #define EXTRUDERS 1
+#endif
 
 #define Z_INCREMENT .0040   //Probe Movement Increment - 1 Full step on Huxley = 1/250
 #define PROBE_N 3
