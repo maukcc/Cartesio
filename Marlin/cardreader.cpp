@@ -531,7 +531,6 @@ void CardReader::printingHasFinished()
    //finishAndDisableSteppers();
    enquecommand(SD_FINISHED_RELEASECOMMAND);
  }
- autotempShutdown();
 }
 void CardReader::fast_xfer(char* strchr_pointer)
   {

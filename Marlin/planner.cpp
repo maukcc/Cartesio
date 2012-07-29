@@ -468,8 +468,8 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   while(block_buffer_tail == next_buffer_head) { 
     manage_heater(); 
     manage_inactivity(1); 
-    LCD_STATUS;
-    LED_STATUS;
+    lcd_status();
+    led_status();
   }
   
   // The target position of the tool in absolute steps

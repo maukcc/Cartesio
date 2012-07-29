@@ -26,9 +26,10 @@
  */
  
 /*
-  RepRapPro ammendations and additions
+  RepRapPro ammendations, deletions and additions
   
   G10, M0, M1, M112 and T commands added/modified by AB 18/7/12
+  Much conditional-compiled code for old/unused hardware removed - AB 29/7/12
   
 */
 
@@ -45,10 +46,12 @@
 #include "temperature.h"
 #include "motion_control.h"
 #include "cardreader.h"
-#include "watchdog.h"
 #include "EEPROMwrite.h"
 #include "language.h"
 #include "pins_arduino.h"
+
+// REMOVE THIS****
+float txyz[EXTRUDERS];
 
 #define VERSION_STRING  "1.0.1 RRP"
 
@@ -98,8 +101,6 @@
 // M35  - Output time since last M109 or SD card start to serial
 
 // M42  - Change pin status via gcode
-// M80  - Turn on Power Supply
-// M81  - Turn off Power Supply
 // M82  - Set E codes absolute (default)
 // M83  - Set E codes relative while in Absolute Coordinates (G90) mode
 // M84  - Disable steppers until next move, 
@@ -349,7 +350,6 @@ void setup()
   tp_init();    // Initialize temperature loop 
   plan_init();  // Initialize planner;
   st_init();    // Initialize stepper;
-  wd_init();
   #if (LED_PIN > -1)
     led_init();
   #endif
@@ -364,7 +364,7 @@ void loop()
   if(buflen < (BUFSIZE-1))
     get_command();
   #ifdef SDSUPPORT
-  card.checkautostart(false);
+    card.checkautostart(false);
   #endif
   if(buflen)
   {
@@ -396,8 +396,8 @@ void loop()
   manage_heater();
   manage_inactivity(1);
   checkHitEndstops();
-  LCD_STATUS;
-  LED_STATUS;
+  lcd_status();
+  led_status();
 }
 
 void get_command() 
@@ -649,8 +649,8 @@ void wait_for_temp(uint8_t& t_ext, unsigned long& codenum)
           }
           manage_heater();
           manage_inactivity(1);
-          LCD_STATUS;
-          LED_STATUS;
+          lcd_status();
+          led_status();
         #ifdef TEMP_RESIDENCY_TIME
             /* start/restart the TEMP_RESIDENCY_TIME timer whenever we reach target temp for the first time
               or when current temp falls outside the hysteresis after target temp was reached */
@@ -740,31 +740,8 @@ void process_commands()
         destination[i] = current_position[i];
       }
       feedrate = 0.0;
-      home_all_axis = !((code_seen(axis_codes[0])) || (code_seen(axis_codes[1])) || (code_seen(axis_codes[2])));
-      #ifdef QUICK_HOME
-      if( code_seen(axis_codes[X_AXIS]) && code_seen(axis_codes[Y_AXIS]) )  //first diagonal move
-      {
-        current_position[X_AXIS] = 0;current_position[Y_AXIS] = 0;  
+      home_all_axis = !((code_seen(axis_codes[X_AXIS])) || (code_seen(axis_codes[Y_AXIS])) || (code_seen(axis_codes[Z_AXIS])));
 
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]); 
-        destination[X_AXIS] = 1.1 * X_MAX_LENGTH * X_HOME_DIR;destination[Y_AXIS] = 1.1 * Y_MAX_LENGTH * Y_HOME_DIR;  
-        feedrate = homing_feedrate[X_AXIS]; 
-        if(homing_feedrate[Y_AXIS]<feedrate)
-          feedrate =homing_feedrate[Y_AXIS]; 
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
-        st_synchronize();
-    
-        current_position[X_AXIS] = (X_HOME_DIR == -1) ? X_HOME_POS : X_MAX_LENGTH;
-        current_position[Y_AXIS] = (Y_HOME_DIR == -1) ? Y_HOME_POS : Y_MAX_LENGTH;
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        destination[X_AXIS] = current_position[X_AXIS];
-        destination[Y_AXIS] = current_position[Y_AXIS];
-        plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
-        feedrate = 0.0;
-        st_synchronize();
-        endstops_hit_on_purpose();
-      }
-      #endif
       
       if((home_all_axis) || (code_seen(axis_codes[X_AXIS]))) 
       {
@@ -951,7 +928,6 @@ void process_commands()
       SERIAL_ECHO_START;
       SERIAL_ECHOLN(time);
       LCD_MESSAGE(time);
-      autotempShutdown();
       }
       break;
     case 42: //M42 -Change pin status via gcode
@@ -981,7 +957,7 @@ void process_commands()
      break;
     case 104: // M104
       tmp_extruder = active_extruder;
-      if(code_seen('T')) {
+      if(code_seen('T')) {                     // Why is this T and not S? - AB
         tmp_extruder = code_value();
         if(tmp_extruder >= EXTRUDERS) {
           SERIAL_ECHO_START;
@@ -995,7 +971,7 @@ void process_commands()
          extruder_temperature[tmp_extruder] = code_value();
          setTargetHotend(code_value(), tmp_extruder);
       }
-      setWatch();
+      
       break;
     case 140: // M140 set bed temp
       if (code_seen('S')) setTargetBed(code_value());
@@ -1036,7 +1012,7 @@ void process_commands()
     case 109: 
     // M109 - Wait for extruder heater to reach target.
       tmp_extruder = active_extruder;
-      if(code_seen('T')) {
+      if(code_seen('T')) {                 // Why is this T and not S? - AB
         tmp_extruder = code_value();
         if(tmp_extruder >= EXTRUDERS) {
           SERIAL_ECHO_START;
@@ -1046,26 +1022,14 @@ void process_commands()
         }
       }
       LCD_MESSAGEPGM(MSG_HEATING);   
-      #ifdef AUTOTEMP
-        autotemp_enabled=false;
-      #endif
+
       if (code_seen('S'))
       {
         extruder_temperature[tmp_extruder] = code_value();
         setTargetHotend(code_value(), tmp_extruder);
       }
-
-      #ifdef AUTOTEMP
-        if (code_seen('S')) autotemp_min=code_value();
-        if (code_seen('B')) autotemp_max=code_value();
-        if (code_seen('F')) 
-        {
-          autotemp_factor=code_value();
-          autotemp_enabled=true;
-        }
-      #endif
       
-      setWatch();
+      
       codenum = millis(); 
       wait_for_temp(tmp_extruder, codenum);
       break;
@@ -1090,7 +1054,7 @@ void process_commands()
           }
           manage_heater();
           manage_inactivity(1);
-          LCD_STATUS;
+          lcd_status();
         }
         LCD_MESSAGEPGM(MSG_BED_DONE);
         previous_millis_cmd = millis();
@@ -1111,22 +1075,6 @@ void process_commands()
         break;
     #endif //FAN_PIN
 
-    #if (PS_ON_PIN > -1)
-      case 80: // M80 - ATX Power On
-        SET_OUTPUT(PS_ON_PIN); //GND
-        WRITE(PS_ON_PIN, LOW);
-        break;
-      #endif
-      
-      case 81: // M81 - ATX Power Off
-      
-      #if defined SUICIDE_PIN && SUICIDE_PIN > -1
-        st_synchronize();
-        suicide();
-      #elif (PS_ON_PIN > -1)
-        SET_INPUT(PS_ON_PIN); //Floating
-      #endif
-		break;
         
     case 82:
       axis_relative_modes[3] = false;
@@ -1306,9 +1254,7 @@ void process_commands()
         if(code_seen('I')) Ki = code_value()*PID_dT;
         if(code_seen('D')) Kd = code_value()/PID_dT;
         if(code_seen('W')) Ki_Max = constrain(code_value(),0,255);
-        #ifdef PID_ADD_EXTRUSION_RATE
-        if(code_seen('C')) Kc = code_value();
-        #endif
+
         updatePID();
         SERIAL_PROTOCOL(MSG_OK);
 		SERIAL_PROTOCOL(" p:");
@@ -1319,10 +1265,7 @@ void process_commands()
         SERIAL_PROTOCOL(Kd*PID_dT);
         SERIAL_PROTOCOL(" w:");
         SERIAL_PROTOCOL(Ki_Max);
-        #ifdef PID_ADD_EXTRUSION_RATE
-        SERIAL_PROTOCOL(" c:");
-        SERIAL_PROTOCOL(Kc*PID_dT);
-        #endif
+
         SERIAL_PROTOCOLLN("");
       }
       break;
@@ -1482,7 +1425,7 @@ void process_commands()
       
       setTargetHotend(extruder_temperature[active_extruder], active_extruder);
       
-      setWatch();
+      
       codenum = millis(); 
       wait_for_temp(active_extruder, codenum);
       }
@@ -1647,25 +1590,6 @@ void manage_inactivity(byte debug)
   #ifdef CONTROLLERFAN_PIN
     controllerFan(); //Check if fan should be turned on to cool stepper drivers down
   #endif
-  #ifdef EXTRUDER_RUNOUT_PREVENT
-    if( (millis() - previous_millis_cmd) >  EXTRUDER_RUNOUT_SECONDS*1000 ) 
-    if(degHotend(active_extruder)>EXTRUDER_RUNOUT_MINTEMP)
-    {
-     bool oldstatus=READ(E0_ENABLE_PIN);
-     enable_e0();
-     float oldepos=current_position[E_AXIS];
-     float oldedes=destination[E_AXIS];
-     plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 
-                      current_position[E_AXIS]+EXTRUDER_RUNOUT_EXTRUDE*EXTRUDER_RUNOUT_ESTEPS/axis_steps_per_unit[E_AXIS], 
-                      EXTRUDER_RUNOUT_SPEED/60.*EXTRUDER_RUNOUT_ESTEPS/axis_steps_per_unit[E_AXIS], active_extruder);
-     current_position[E_AXIS]=oldepos;
-     destination[E_AXIS]=oldedes;
-     plan_set_e_position(oldepos);
-     previous_millis_cmd=millis();
-     st_synchronize();
-     WRITE(E0_ENABLE_PIN,oldstatus);
-    }
-  #endif
   check_axes_activity();
 }
 
@@ -1681,7 +1605,6 @@ void kill()
   disable_e1();
   disable_e2();
   
-  if(PS_ON_PIN > -1) pinMode(PS_ON_PIN,INPUT);
   SERIAL_ERROR_START;
   SERIAL_ERRORLNPGM(MSG_ERR_KILLED);
   LCD_MESSAGEPGM(MSG_KILLED);
@@ -1702,75 +1625,5 @@ void Stop()
 }
 
 bool IsStopped() { return Stopped; };
-
-#ifdef FAST_PWM_FAN
-void setPwmFrequency(uint8_t pin, int val)
-{
-  val &= 0x07;
-  switch(digitalPinToTimer(pin))
-  {
- 
-    #if defined(TCCR0A)
-    case TIMER0A:
-    case TIMER0B:
-//         TCCR0B &= ~(CS00 | CS01 | CS02);
-//         TCCR0B |= val;
-         break;
-    #endif
-
-    #if defined(TCCR1A)
-    case TIMER1A:
-    case TIMER1B:
-//         TCCR1B &= ~(CS10 | CS11 | CS12);
-//         TCCR1B |= val;
-         break;
-    #endif
-
-    #if defined(TCCR2)
-    case TIMER2:
-    case TIMER2:
-         TCCR2 &= ~(CS10 | CS11 | CS12);
-         TCCR2 |= val;
-         break;
-    #endif
-
-    #if defined(TCCR2A)
-    case TIMER2A:
-    case TIMER2B:
-         TCCR2B &= ~(CS20 | CS21 | CS22);
-         TCCR2B |= val;
-         break;
-    #endif
-
-    #if defined(TCCR3A)
-    case TIMER3A:
-    case TIMER3B:
-    case TIMER3C:
-         TCCR3B &= ~(CS30 | CS31 | CS32);
-         TCCR3B |= val;
-         break;
-    #endif
-
-    #if defined(TCCR4A) 
-    case TIMER4A:
-    case TIMER4B:
-    case TIMER4C:
-         TCCR4B &= ~(CS40 | CS41 | CS42);
-         TCCR4B |= val;
-         break;
-   #endif
-
-    #if defined(TCCR5A) 
-    case TIMER5A:
-    case TIMER5B:
-    case TIMER5C:
-         TCCR5B &= ~(CS50 | CS51 | CS52);
-         TCCR5B |= val;
-         break;
-   #endif
-
-  }
-}
-#endif
 
 

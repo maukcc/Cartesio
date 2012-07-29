@@ -2,12 +2,12 @@
 #define CONFIGURATION_H
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
-//#define REPRAPPRO_HUXLEY
+#define REPRAPPRO_HUXLEY
 //#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
 
 // Uncomment ONE of the next two lines - the one for your master controller electronics
-//#define REPRAPPRO_MELZI
+#define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
 
 // Uncomment the next line if your machine has more than one extruder
@@ -40,12 +40,11 @@
 //User specified version info of THIS file to display in [Pronterface, etc] terminal window during startup.
 //Implementation of an idea by Prof Braino to inform user that any changes made
 //to THIS file by the user have been successfully uploaded into firmware.
-#define STRING_VERSION_CONFIG_H "2012-07-20-1-AB" //Personal revision number for changes to THIS file.
+#define STRING_VERSION_CONFIG_H "2012-07-29-1-AB" //Personal revision number for changes to THIS file.
 #define STRING_CONFIG_H_AUTHOR "RepRapPro" //Who made the changes.
 
 // This determines the communication speed of the printer
 #define BAUDRATE 250000
-//#define BAUDRATE 115200
 
 //// The following define selects which electronics board you have. Please choose the one that matches your setup
 // Gen7 custom (Alfons3 Version) = 10 "https://github.com/Alfons3/Generation_7_Electronics"
@@ -79,9 +78,6 @@
 
 // Set this if you want to define the constants in the thermistor circuit
 // and work out temperatures algebraically - added by AB.
-#define COMPUTE_THERMISTORS
-
-#ifdef COMPUTE_THERMISTORS
 
 // See http://en.wikipedia.org/wiki/Thermistor#B_or_.CE.B2_parameter_equation
 
@@ -135,33 +131,7 @@
 #define HEATER_1_USES_THERMISTOR
 #define HEATER_2_USES_THERMISTOR
 
-#endif
 
-
-
-//// Temperature sensor settings:
-// -2 is thermocouple with MAX6675 (only for sensor 0)
-// -1 is thermocouple with AD595
-// 0 is not used
-// 1 is 100k thermistor - best choice for EPCOS 100k (4.7k pullup)
-// 2 is 200k thermistor - ATC Semitec 204GT-2 (4.7k pullup)
-// 3 is mendel-parts thermistor (4.7k pullup)
-// 4 is 10k thermistor !! do not use it for a hotend. It gives bad resolution at high temp. !!
-// 5 is ParCan supplied 104GT-2 100K
-// 6 is EPCOS 100k
-// 7 is 100k Honeywell thermistor 135-104LAG-J01
-// 100 is 100k GE Sensing AL03006-58.2K-97-G1 with r2=4k7
-// 101 is 100k 0603 SMD Vishay NTCS0603E3104FXT with r2=4k7
-// 102 is 100k EPCOS G57540 Nozzle with r2=4k7
-// 103 is 100k EPCOS G57540 Bed with r2=4k7
-// 104 is 10k G57540 Bed with r2=4k7
-// 105 is 10k G57540 Bed with r2=10k
-// 110 is 100k RS thermistor 198-961 hot end with 10K resistor
-
-#define TEMP_SENSOR_0 102
-#define TEMP_SENSOR_1 0
-#define TEMP_SENSOR_2 0
-#define TEMP_SENSOR_BED 101
 
 // Actual temperature must be close to target for this long before M109 returns success
 #define TEMP_RESIDENCY_TIME 10  // (seconds)
@@ -196,31 +166,16 @@
 #define FULL_PID_BAND 150 // Full power is applied when pid_error[e] > FULL_PID_BAND
 #ifdef PIDTEMP
   //#define PID_DEBUG // Sends debug data to the serial port. 
-  //#define PID_OPENLOOP 1 // Puts PID in open loop. M104 sets the output power in %
   #define PID_INTEGRAL_DRIVE_MAX 125  //limit for the integral term
   #define K1 0.95 //smoothing factor withing the PID
   #define PID_dT 0.122 //sampling period of the PID
 
-// If you are using a preconfigured hotend then you can use one of the value sets by uncommenting it
-// Ultimaker
-//    #define  DEFAULT_Kp  22.2
-//    #define  DEFAULT_Ki (1.25*PID_dT)  
-//    #define  DEFAULT_Kd (99/PID_dT)  
-
-// Makergear
-//    #define  DEFAULT_Kp 7.0
-//    #define  DEFAULT_Ki 0.1  
-//    #define  DEFAULT_Kd 12  
 
 // RepRapPro Huxley + Mendel
     #define  DEFAULT_Kp 12.0
     #define  DEFAULT_Ki (2.2*PID_dT)
     #define  DEFAULT_Kd (80/PID_dT)
 
-// Mendel Parts V9 on 12V    
-//    #define  DEFAULT_Kp  63.0
-//    #define  DEFAULT_Ki (2.25*PID_dT)  
-//    #define  DEFAULT_Kd (440/PID_dT)
 #endif // PIDTEMP
 
 #ifndef DEVELOPING
@@ -308,7 +263,7 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 // default settings 
 
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286,4000,875}                    // default steps per unit for ultimaker
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286,4000,875} 
 
 // Defaults changed by the G10 command
 
@@ -380,6 +335,6 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 // #define PHOTOGRAPH_PIN     23
 
 #include "Configuration_adv.h"
-#include "thermistortables.h"
+
 
 #endif //__CONFIGURATION_H
