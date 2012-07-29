@@ -47,20 +47,8 @@
 #define BAUDRATE 250000
 
 //// The following define selects which electronics board you have. Please choose the one that matches your setup
-// Gen7 custom (Alfons3 Version) = 10 "https://github.com/Alfons3/Generation_7_Electronics"
-// Gen7 v1.1, v1.2 = 11
-// Gen7 v1.3 = 12
-// Gen7 v1.4 = 13
-// MEGA/RAMPS up to 1.2 = 3
-// RAMPS 1.3 = 33 (Power outputs: Extruder, Bed, Fan)
-// RAMPS 1.3 = 34 (Power outputs: Extruder0, Extruder1, Bed)
-// Gen6 = 5
-// Gen6 deluxe = 51
 // Sanguinololu 1.2 and above = 62
 // Melzi 63
-// Ultimaker = 7
-// Teensylu = 8
-// Gen3+ =9
 
 #ifdef REPRAPPRO_SANGUINOLOLU
 #define MOTHERBOARD 62
@@ -262,8 +250,8 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 
 // default settings 
-
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286,4000,875} 
+// X, Y, Z, E steps per mm
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 875} 
 
 // Defaults changed by the G10 command
 
