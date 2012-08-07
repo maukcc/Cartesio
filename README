@@ -1,3 +1,18 @@
+This is the RepRapPRo version of Marlin.
+
+http://reprappro.com
+
+Modifications mainly be Jean-Marc and Adrian
+
+The core Marlin code in the Marlin directory is stable and is our standard
+release firmware for all RepRapPro RepRap machines.
+
+Code in the Slave directory is under development.  This drives a slave
+controller (with the core Marling code on the master controller) to drive
+multiple extruders.
+
+
+
 <<<<<<< HEAD
 A new beta version is avaiable.
 Look under the Marlin_v1 branch. We also made a tag that you can download.

@@ -4,7 +4,11 @@
 #ifndef MARLIN_H
 #define MARLIN_H
 
+#include "Configuration.h"
+
+#ifndef REPRAPPRO_MULTIMATERIALS
 #define  HardwareSerial_h // trick to disable the standard HWserial
+#endif
 
 #define  FORCE_INLINE __attribute__((always_inline)) inline
 
@@ -22,7 +26,7 @@
 
 
 #include "fastio.h"
-#include "Configuration.h"
+
 #include "pins.h"
 
 #if ARDUINO >= 100 
@@ -46,10 +50,18 @@
 
 #include "WString.h"
 
-#if MOTHERBOARD == 8  // Teensylu
+#ifdef REPRAPPRO_MULTIMATERIALS
   #define MYSERIAL Serial
+  #define MYSERIAL1 Serial1
+#else
+
+#if MOTHERBOARD == 8 // Teensylu
+  #define MYSERIAL Serial
+  #define MYSERIAL1 Serial1
 #else
   #define MYSERIAL MSerial
+#endif
+
 #endif
 
 //this is a unfinsihed attemp to removes a lot of warning messages, see:

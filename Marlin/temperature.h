@@ -23,7 +23,7 @@
 
 #include "Marlin.h"
 #include "planner.h"
-#include "slave.h"
+#include "slave_comms.h"
 
 // If we are using a slave board we have multiple extruders, but we only have to worry
 // about the temperature of the first one of them.

@@ -309,15 +309,16 @@ float analog2tempi(int raw, const float& beta, const float& rs, const float& r_i
 
 
 #ifdef REPRAPPRO_MULTIMATERIALS
-// TODO Put some code in here...
+
 
 float analog2temp_remote(uint8_t e)
 {
-	return 20;
+	return slaveDegHotend(e);
 }
 
 int temp2analog_remote(int celsius, uint8_t e)
 {
+	// What do we do about this, then?
 	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF);
 }
 #endif
@@ -330,16 +331,17 @@ int temp2analog(int celsius, uint8_t e)
 #endif
 	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF); 
 }
-int temp2analogBed(int celsius) 
-{
-	return temp2analogi(celsius, BED_BETA, BED_RS, BED_R_INF); 
-}
 float analog2temp(int raw, uint8_t e) 
 {
 #ifdef REPRAPPRO_MULTIMATERIALS
 	if(e > 0) return analog2temp_remote(e);
 #endif
 	return analog2tempi(raw, E_BETA, E_RS, E_R_INF); 
+}
+
+int temp2analogBed(int celsius) 
+{
+	return temp2analogi(celsius, BED_BETA, BED_RS, BED_R_INF); 
 }
 float analog2tempBed(int raw) 
 { 

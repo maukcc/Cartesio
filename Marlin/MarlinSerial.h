@@ -19,10 +19,13 @@
   Modified 28 September 2010 by Mark Sproul
 */
 
+
+
 #ifndef MarlinSerial_h
 #define MarlinSerial_h
 #include "Marlin.h"
 
+#ifndef REPRAPPRO_MULTIMATERIALS
 
 #define DEC 10
 #define HEX 16
@@ -145,6 +148,9 @@ class MarlinSerial //: public Stream
 };
 
 extern MarlinSerial MSerial;
+extern MarlinSerial MSerial1;
 #endif // ! teensylu
 
 #endif
+
+#endif // REPRAPPRO_MULTIMATERIALS

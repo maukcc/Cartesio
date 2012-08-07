@@ -22,7 +22,7 @@
 #define stepper_h 
 
 #include "planner.h"
-#include "slave.h"
+#include "slave_comms.h"
 
 #ifdef REPRAPPRO_MULTIMATERIALS
 

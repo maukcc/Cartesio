@@ -73,6 +73,7 @@
 #define SDPOWER            -1
 #define SDSS               31
 
+
 #endif
 
 /****************************************************************************************
@@ -130,6 +131,8 @@
 #define TEMP_BED_PIN        6   // MUST USE ANALOG INPUT NUMBERING NOT DIGITAL OUTPUT NUMBERING!!!!!!!!! (pin 34 bed)
 #define SDPOWER            -1
 #define SDSS               31
+
+#define STEP_TOGGLE	   16
 
 #endif
 

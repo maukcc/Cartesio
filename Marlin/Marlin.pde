@@ -49,9 +49,7 @@
 #include "EEPROMwrite.h"
 #include "language.h"
 #include "pins_arduino.h"
-
-// REMOVE THIS****
-float txyz[EXTRUDERS];
+#include "slave_comms.h"
 
 #define VERSION_STRING  "1.0.1 RRP"
 
@@ -135,6 +133,8 @@ float txyz[EXTRUDERS];
 // M511 - FPU Reset
 // M512 - FPU Disable
 // M999 - Restart after being stopped by error
+
+// M555 - Temporary: master/slave comms test
 
 // TN - Select extruder N
 
@@ -356,6 +356,11 @@ void setup()
   probe_init(); //Initializes probe if PROBE_PIN is defined
   FPUTransform_init(); //Initializes FPU when UMFPUSUPPORT defined
   setup_photpin();
+  
+#ifdef REPRAPPRO_MULTIMATERIALS
+  setup_slave();
+#endif
+
 }
 
 
@@ -1358,7 +1363,14 @@ void process_commands()
       FPUDisable();
     }
     break;
-
+#ifdef REPRAPPRO_MULTIMATERIALS    
+    case 555: // Slave comms test
+      talkToSlave("AMFP");
+      SERIAL_ECHO_START;
+      SERIAL_ECHOPGM("Slave response:");
+      SERIAL_ECHO(listenToSlave());
+      break;
+#endif
     }
   }
 
@@ -1394,7 +1406,7 @@ void process_commands()
       y_off_d = extruder_y_off[tmp_extruder] - extruder_y_off[active_extruder];
       z_off_d = extruder_z_off[tmp_extruder] - extruder_z_off[active_extruder];      
       
-      if(z_off_d >= 0)
+      if(z_off_d > 0)
       {
         destination[Z_AXIS] += z_off_d;
         feedrate = fast_home_feedrate[Z_AXIS];
