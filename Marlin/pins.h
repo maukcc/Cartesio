@@ -132,7 +132,7 @@
 #define SDPOWER            -1
 #define SDSS               31
 
-#define STEP_TOGGLE	   16
+#define SLAVE_CLOCK	   16
 
 #endif
 

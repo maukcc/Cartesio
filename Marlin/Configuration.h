@@ -1,6 +1,12 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
+// ==============================================================================
+
+// For instructions on setting these constants, see:
+// Mendel: http://reprap.org/wiki/RepRapPro_Mendel_maintenance
+// Huxley: http://reprap.org/wiki/RepRapPro_Huxley_maintenance
+
 // Uncomment ONE of the next three lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
 //#define REPRAPPRO_MENDEL
@@ -10,10 +16,14 @@
 //#define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
 
+// Uncomment ONE of the next two lines - the one for the series resistors on your controller
+//#define SERIAL_R 4700
+//#define SERIAL_R 10000
+
 // Uncomment the next line if your machine has more than one extruder
 //#define REPRAPPRO_MULTIMATERIALS
 
-// ==============================================================================
+// -------------------------------------------------------------------------------
 
 #ifndef REPRAPPRO_HUXLEY
 #ifndef REPRAPPRO_MENDEL
@@ -28,6 +38,12 @@
 #error Uncomment one of #define REPRAPPRO_MELZI or REPRAPPRO_SANGUINOLOLU at the start of the file Configuration.h
 #endif
 #endif
+
+#ifndef SERIAL_R
+#error Uncomment one of #define SERIAL_R 10000 or 4700 at the start of the file Configuration.h
+#endif
+
+// ==============================================================================
 
 // Uncomment this if you are experimenting, know what you are doing, and want to switch off some safety
 // features, e.g. allow extrude at low temperature etc.
@@ -82,13 +98,6 @@
 
 // This DOES assume that all extruders use the same thermistor type.
 
-
-// Old Melzis have 10K temp series resistors.  New should be 4K7.
-#ifdef REPRAPPRO_MELZI
-#define SERIAL_R 10000
-#else
-#define SERIAL_R 4700
-#endif
 
 #define ABS_ZERO -273.15
 #define AD_RANGE 16383

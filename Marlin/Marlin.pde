@@ -1365,11 +1365,24 @@ void process_commands()
     break;
 #ifdef REPRAPPRO_MULTIMATERIALS    
     case 555: // Slave comms test
-      talkToSlave("AMFP");
+      talkToSlave("t 0");
       SERIAL_ECHO_START;
       SERIAL_ECHOPGM("Slave response:");
       SERIAL_ECHO(listenToSlave());
       break;
+    case 556: // Set temp
+      talkToSlave("T 0 100");
+      break;
+    case 557:  // Call stepper test    
+      talkToSlave("A");
+      break;
+    case 558: // Send interrupt
+      for(int ii=0; ii < 1000; ii++)
+      {
+        toggleSlaveClock();
+        delay(1);
+      }
+      break;    
 #endif
     }
   }

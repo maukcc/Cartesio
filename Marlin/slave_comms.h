@@ -11,7 +11,7 @@
 extern float txyz[];
 extern char slaveBuffer[];
 extern long timeout;
-#define TIMEOUT 2
+#define TIMEOUT 4 // ms
 
 float slaveDegHotend(uint8_t extruder);
 void slaveSetTargetHotend(const float &celsius, uint8_t extruder);
@@ -37,6 +37,11 @@ FORCE_INLINE void slaveRemoteStep(int8_t extruder, int8_t v)
 
 }
 
+FORCE_INLINE void toggleSlaveClock()
+{
+	digitalWrite(SLAVE_CLOCK, !digitalRead(SLAVE_CLOCK));
+}
+
 FORCE_INLINE void slaveRemoteDir(int8_t extruder, bool forward)
 {
 
@@ -48,11 +53,11 @@ FORCE_INLINE char* listenToSlave()
 	int c = 0;
 	timeout = millis();
 	int8_t i = 0;
-	while(c != '\n')
+	while(c != '\n' && (millis() - timeout < TIMEOUT))
 	{
 		while(!MYSERIAL1.available() && (millis() - timeout < TIMEOUT));
 		c = MYSERIAL1.read();
-		timeout = millis();
+		//timeout = millis();
 		slaveBuffer[i] = (char)c;
 		i++;
 	}
