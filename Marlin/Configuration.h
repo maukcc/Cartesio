@@ -2,9 +2,9 @@
 #define CONFIGURATION_H
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
-#define REPRAPPRO_HUXLEY
-//#define REPRAPPRO_MENDEL
-//#define REPRAPPRO_WALLACE
+//#define REPRAPPRO_HUXLEY
+#define REPRAPPRO_MENDEL
+//#define REPRAPPxRO_WALLACE
 
 #ifndef REPRAPPRO_HUXLEY
 #ifndef REPRAPPRO_MENDEL
@@ -25,7 +25,7 @@
 //User specified version info of THIS file to display in [Pronterface, etc] terminal window during startup.
 //Implementation of an idea by Prof Braino to inform user that any changes made
 //to THIS file by the user have been successfully uploaded into firmware.
-#define STRING_VERSION_CONFIG_H "2012-06-25-1" //Personal revision number for changes to THIS file.
+#define STRING_VERSION_CONFIG_H "2012-08-13-1" //Personal revision number for changes to THIS file.
 #define STRING_CONFIG_H_AUTHOR "RepRapPro" //Who made the changes.
 
 // This determines the communication speed of the printer
@@ -47,7 +47,7 @@
 // Ultimaker = 7
 // Teensylu = 8
 // Gen3+ =9
-#define MOTHERBOARD 62
+#define MOTHERBOARD 63
 
 //===========================================================================
 //=============================Thermal Settings  ============================
@@ -115,10 +115,17 @@
 // 105 is 10k G57540 Bed with r2=10k
 // 110 is 100k RS thermistor 198-961 hot end with 10K resistor
 
-#define TEMP_SENSOR_0 102
 #define TEMP_SENSOR_1 0
 #define TEMP_SENSOR_2 0
-#define TEMP_SENSOR_BED 101
+
+#ifdef REPRAPPRO_HUXLEY
+  #define TEMP_SENSOR_0 100 //110
+  #define TEMP_SENSOR_BED 101 //105
+#endif
+#ifdef REPRAPPRO_MENDEL
+  #define TEMP_SENSOR_0 100
+  #define TEMP_SENSOR_BED 104
+#endif
 
 // Actual temperature must be close to target for this long before M109 returns success
 #define TEMP_RESIDENCY_TIME 10  // (seconds)
