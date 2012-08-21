@@ -20,7 +20,12 @@
   Modified 28 September 2010 by Mark Sproul
 */
 
+
+
 #include "Marlin.h"
+
+#ifndef REPRAPPRO_MULTIMATERIALS
+
 #include "MarlinSerial.h"
 
 #if MOTHERBOARD != 8 // !teensylu
@@ -324,6 +329,10 @@ void MarlinSerial::printFloat(double number, uint8_t digits)
 
 MarlinSerial MSerial;
 
+MarlinSerial MSerial1;
+
 #endif // whole file
 #endif //teensylu
+
+#endif REPRAPPRO_MULTIMATERIALS
 

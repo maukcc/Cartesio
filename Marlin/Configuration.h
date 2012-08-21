@@ -1,10 +1,29 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
+// ==============================================================================
+
+// For instructions on setting these constants, see:
+// Mendel: http://reprap.org/wiki/RepRapPro_Mendel_maintenance
+// Huxley: http://reprap.org/wiki/RepRapPro_Huxley_maintenance
+
 // Uncomment ONE of the next three lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
-#define REPRAPPRO_MENDEL
-//#define REPRAPPxRO_WALLACE
+//#define REPRAPPRO_MENDEL
+//#define REPRAPPRO_WALLACE
+
+// Uncomment ONE of the next two lines - the one for your master controller electronics
+//#define REPRAPPRO_MELZI
+//#define REPRAPPRO_SANGUINOLOLU
+
+// Uncomment ONE of the next two lines - the one for the series resistors on your controller
+//#define SERIAL_R 4700
+//#define SERIAL_R 10000
+
+// Uncomment the next line if your machine has more than one extruder
+//#define REPRAPPRO_MULTIMATERIALS
+
+// -------------------------------------------------------------------------------
 
 #ifndef REPRAPPRO_HUXLEY
 #ifndef REPRAPPRO_MENDEL
@@ -13,6 +32,18 @@
 #endif
 #endif
 #endif
+
+#ifndef REPRAPPRO_MELZI
+#ifndef REPRAPPRO_SANGUINOLOLU
+#error Uncomment one of #define REPRAPPRO_MELZI or REPRAPPRO_SANGUINOLOLU at the start of the file Configuration.h
+#endif
+#endif
+
+#ifndef SERIAL_R
+#error Uncomment one of #define SERIAL_R 10000 or 4700 at the start of the file Configuration.h
+#endif
+
+// ==============================================================================
 
 // Uncomment this if you are experimenting, know what you are doing, and want to switch off some safety
 // features, e.g. allow extrude at low temperature etc.
@@ -25,29 +56,25 @@
 //User specified version info of THIS file to display in [Pronterface, etc] terminal window during startup.
 //Implementation of an idea by Prof Braino to inform user that any changes made
 //to THIS file by the user have been successfully uploaded into firmware.
-#define STRING_VERSION_CONFIG_H "2012-08-13-1" //Personal revision number for changes to THIS file.
+#define STRING_VERSION_CONFIG_H "2012-07-29-1-AB" //Personal revision number for changes to THIS file.
 #define STRING_CONFIG_H_AUTHOR "RepRapPro" //Who made the changes.
 
 // This determines the communication speed of the printer
 #define BAUDRATE 250000
-//#define BAUDRATE 115200
 
 //// The following define selects which electronics board you have. Please choose the one that matches your setup
-// Gen7 custom (Alfons3 Version) = 10 "https://github.com/Alfons3/Generation_7_Electronics"
-// Gen7 v1.1, v1.2 = 11
-// Gen7 v1.3 = 12
-// Gen7 v1.4 = 13
-// MEGA/RAMPS up to 1.2 = 3
-// RAMPS 1.3 = 33 (Power outputs: Extruder, Bed, Fan)
-// RAMPS 1.3 = 34 (Power outputs: Extruder0, Extruder1, Bed)
-// Gen6 = 5
-// Gen6 deluxe = 51
 // Sanguinololu 1.2 and above = 62
 // Melzi 63
-// Ultimaker = 7
-// Teensylu = 8
-// Gen3+ =9
+
+#ifdef REPRAPPRO_SANGUINOLOLU
+#define MOTHERBOARD 62
+#endif
+
+#ifdef REPRAPPRO_MELZI
 #define MOTHERBOARD 63
+#endif
+
+
 
 //===========================================================================
 //=============================Thermal Settings  ============================
@@ -55,9 +82,6 @@
 
 // Set this if you want to define the constants in the thermistor circuit
 // and work out temperatures algebraically - added by AB.
-//#define COMPUTE_THERMISTORS
-
-#ifdef COMPUTE_THERMISTORS
 
 // See http://en.wikipedia.org/wiki/Thermistor#B_or_.CE.B2_parameter_equation
 
@@ -74,58 +98,37 @@
 
 // This DOES assume that all extruders use the same thermistor type.
 
+
 #define ABS_ZERO -273.15
 #define AD_RANGE 16383
 
 // RS 198-961
 #define E_BETA 3960.0
-#define E_RS 4700.0
+#define E_RS SERIAL_R
 #define E_R_INF ( 100000.0*exp(-E_BETA/298.15) )
 
+
+#ifdef REPRAPPRO_MENDEL
 // RS 484-0149; EPCOS B57550G103J
 #define BED_BETA 3480.0
-#define BED_RS 4700.0
+#define BED_RS SERIAL_R
 #define BED_R_INF ( 10000.0*exp(-BED_BETA/298.15) )
+#endif
+
+#ifdef REPRAPPRO_HUXLEY
+// VISHAY BC COMPONENTS - NTCS0603E3104FXT
+#define BED_BETA 4100.0
+#define BED_RS SERIAL_R
+#define BED_R_INF ( 100000.0*exp(-BED_BETA/298.15) )
+#endif
+
 
 #define BED_USES_THERMISTOR
 #define HEATER_0_USES_THERMISTOR
-//#define HEATER_1_USES_THERMISTOR
-//#define HEATER_2_USES_THERMISTOR
-
-#endif
+#define HEATER_1_USES_THERMISTOR
+#define HEATER_2_USES_THERMISTOR
 
 
-
-//// Temperature sensor settings:
-// -2 is thermocouple with MAX6675 (only for sensor 0)
-// -1 is thermocouple with AD595
-// 0 is not used
-// 1 is 100k thermistor - best choice for EPCOS 100k (4.7k pullup)
-// 2 is 200k thermistor - ATC Semitec 204GT-2 (4.7k pullup)
-// 3 is mendel-parts thermistor (4.7k pullup)
-// 4 is 10k thermistor !! do not use it for a hotend. It gives bad resolution at high temp. !!
-// 5 is ParCan supplied 104GT-2 100K
-// 6 is EPCOS 100k
-// 7 is 100k Honeywell thermistor 135-104LAG-J01
-// 100 is 100k GE Sensing AL03006-58.2K-97-G1 with r2=4k7
-// 101 is 100k 0603 SMD Vishay NTCS0603E3104FXT with r2=4k7
-// 102 is 100k EPCOS G57540 Nozzle with r2=4k7
-// 103 is 100k EPCOS G57540 Bed with r2=4k7
-// 104 is 10k G57540 Bed with r2=4k7
-// 105 is 10k G57540 Bed with r2=10k
-// 110 is 100k RS thermistor 198-961 hot end with 10K resistor
-
-#define TEMP_SENSOR_1 0
-#define TEMP_SENSOR_2 0
-
-#ifdef REPRAPPRO_HUXLEY
-  #define TEMP_SENSOR_0 100 //110
-  #define TEMP_SENSOR_BED 101 //105
-#endif
-#ifdef REPRAPPRO_MENDEL
-  #define TEMP_SENSOR_0 100
-  #define TEMP_SENSOR_BED 104
-#endif
 
 // Actual temperature must be close to target for this long before M109 returns success
 #define TEMP_RESIDENCY_TIME 10  // (seconds)
@@ -136,16 +139,20 @@
 // to check that the wiring to the thermistor is not broken. 
 // Otherwise this would lead to the heater being powered on all the time.
 #define HEATER_0_MINTEMP 1
-//#define HEATER_1_MINTEMP 5
-//#define HEATER_2_MINTEMP 5
+#ifdef REPRAPPRO_MULTIMATERIALS
+#define HEATER_1_MINTEMP 1
+#define HEATER_2_MINTEMP 1
+#endif
 #define BED_MINTEMP 1
 
 // When temperature exceeds max temp, your heater will be switched off.
 // This feature exists to protect your hotend from overheating accidentally, but *NOT* from thermistor short/failure!
 // You should use MINTEMP for thermistor short/failure protection.
 #define HEATER_0_MAXTEMP 399
-//#define HEATER_1_MAXTEMP 275
-//#define HEATER_2_MAXTEMP 275
+#ifdef REPRAPPRO_MULTIMATERIALS
+#define HEATER_1_MAXTEMP 275
+#define HEATER_2_MAXTEMP 275
+#endif
 #define BED_MAXTEMP 150
 
 
@@ -156,31 +163,16 @@
 #define FULL_PID_BAND 150 // Full power is applied when pid_error[e] > FULL_PID_BAND
 #ifdef PIDTEMP
   //#define PID_DEBUG // Sends debug data to the serial port. 
-  //#define PID_OPENLOOP 1 // Puts PID in open loop. M104 sets the output power in %
   #define PID_INTEGRAL_DRIVE_MAX 125  //limit for the integral term
   #define K1 0.95 //smoothing factor withing the PID
   #define PID_dT 0.122 //sampling period of the PID
 
-// If you are using a preconfigured hotend then you can use one of the value sets by uncommenting it
-// Ultimaker
-//    #define  DEFAULT_Kp  22.2
-//    #define  DEFAULT_Ki (1.25*PID_dT)  
-//    #define  DEFAULT_Kd (99/PID_dT)  
-
-// Makergear
-//    #define  DEFAULT_Kp 7.0
-//    #define  DEFAULT_Ki 0.1  
-//    #define  DEFAULT_Kd 12  
 
 // RepRapPro Huxley + Mendel
     #define  DEFAULT_Kp 12.0
     #define  DEFAULT_Ki (2.2*PID_dT)
     #define  DEFAULT_Kd (80/PID_dT)
 
-// Mendel Parts V9 on 12V    
-//    #define  DEFAULT_Kp  63.0
-//    #define  DEFAULT_Ki (2.25*PID_dT)  
-//    #define  DEFAULT_Kd (440/PID_dT)
 #endif // PIDTEMP
 
 #ifndef DEVELOPING
@@ -189,6 +181,8 @@
 #define PREVENT_DANGEROUS_EXTRUDE
 #define EXTRUDE_MINTEMP 170
 #define EXTRUDE_MAXLENGTH (X_MAX_LENGTH+Y_MAX_LENGTH) //prevent extrusion of very large distances.
+#else
+#define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 #endif
 
 //===========================================================================
@@ -265,8 +259,18 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 
 // default settings 
+// X, Y, Z, E steps per mm
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 875} 
 
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286,4000,875}                    // default steps per unit for ultimaker 
+// Defaults changed by the G10 command
+
+#define X_EXTRUDER_OFFSET 0
+#define Y_EXTRUDER_OFFSET 0
+#define Z_EXTRUDER_OFFSET 0
+#define STANDBY_TEMP 140
+#define PLA_TEMP 205
+#define ABS_TEMP 250
+#define DEFAULT_TEMP PLA_TEMP
 
 
 #define DEFAULT_ACCELERATION          1000    // X, Y, Z and E max acceleration in mm/s^2 for printing moves 
@@ -328,6 +332,6 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 // #define PHOTOGRAPH_PIN     23
 
 #include "Configuration_adv.h"
-#include "thermistortables.h"
+
 
 #endif //__CONFIGURATION_H
