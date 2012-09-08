@@ -1,17 +1,20 @@
 
 #include "Marlin.h"
+#include "slave_comms.h"
 
 #ifdef REPRAPPRO_MULTIMATERIALS
 
-float txyz[EXTRUDERS];
-char slaveBuffer[64];
+char slaveXmitBuffer[SLAVE_BUF];
+char slaveRcvBuffer[SLAVE_BUF];
+bool setDir[EXTRUDERS];
 long timeout;
 
 void setup_slave()
 {
-	MYSERIAL1.begin(250000);
+	MYSERIAL1.begin(SLAVE_BAUD);
 	SET_OUTPUT(SLAVE_CLOCK);
-	digitalWrite(SLAVE_CLOCK, 1);
+        for(int i = 0; i < EXTRUDERS; i++)
+          setDir[i] = true;
 }
 
 #endif

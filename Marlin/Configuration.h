@@ -9,19 +9,19 @@
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
-//#define REPRAPPRO_MENDEL
+#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
 
 // Uncomment ONE of the next two lines - the one for your master controller electronics
-//#define REPRAPPRO_MELZI
+#define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
 
 // Uncomment ONE of the next two lines - the one for the series resistors on your controller
-//#define SERIAL_R 4700
+#define SERIAL_R 4700
 //#define SERIAL_R 10000
 
 // Uncomment the next line if your machine has more than one extruder
-//#define REPRAPPRO_MULTIMATERIALS
+#define REPRAPPRO_MULTIMATERIALS
 
 // -------------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@
 
 // Uncomment this if you are experimenting, know what you are doing, and want to switch off some safety
 // features, e.g. allow extrude at low temperature etc.
-//#define DEVELOPING
+#define DEVELOPING
 
 // This configurtion file contains the basic settings.
 // Advanced settings can be found in Configuration_adv.h 
@@ -148,7 +148,7 @@
 // When temperature exceeds max temp, your heater will be switched off.
 // This feature exists to protect your hotend from overheating accidentally, but *NOT* from thermistor short/failure!
 // You should use MINTEMP for thermistor short/failure protection.
-#define HEATER_0_MAXTEMP 399
+#define HEATER_0_MAXTEMP 300
 #ifdef REPRAPPRO_MULTIMATERIALS
 #define HEATER_1_MAXTEMP 275
 #define HEATER_2_MAXTEMP 275
@@ -209,12 +209,12 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 #define DISABLE_Z true
 #define DISABLE_E false // For all extruders
 
-#define INVERT_X_DIR true    // for Mendel set to false, for Orca set to true
-#define INVERT_Y_DIR false    // for Mendel set to true, for Orca set to false
-#define INVERT_Z_DIR false     // for Mendel set to false, for Orca set to true
-#define INVERT_E0_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
-#define INVERT_E1_DIR true    // for direct drive extruder v9 set to true, for geared extruder set to false
-#define INVERT_E2_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
+#define INVERT_X_DIR true 
+#define INVERT_Y_DIR false
+#define INVERT_Z_DIR false 
+#define INVERT_E0_DIR true 
+#define INVERT_E1_DIR true
+#define INVERT_E2_DIR true 
 
 // ENDSTOP SETTINGS:
 // Sets direction of endstops when homing; 1=MAX, -1=MIN
@@ -267,10 +267,8 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 #define X_EXTRUDER_OFFSET 0
 #define Y_EXTRUDER_OFFSET 0
 #define Z_EXTRUDER_OFFSET 0
-#define STANDBY_TEMP 140
-#define PLA_TEMP 205
-#define ABS_TEMP 250
-#define DEFAULT_TEMP PLA_TEMP
+#define STANDBY_TEMP 0
+#define DEFAULT_TEMP 0
 
 
 #define DEFAULT_ACCELERATION          1000    // X, Y, Z and E max acceleration in mm/s^2 for printing moves 

@@ -45,7 +45,7 @@
 #include "stepper.h"
 #include "temperature.h"
 #include "motion_control.h"
-#include "cardreader.h"
+#include "Sd.h"
 #include "EEPROMwrite.h"
 #include "language.h"
 #include "pins_arduino.h"
@@ -1365,13 +1365,13 @@ void process_commands()
     break;
 #ifdef REPRAPPRO_MULTIMATERIALS    
     case 555: // Slave comms test
-      talkToSlave("t 0");
+      talkToSlave("t0");
       SERIAL_ECHO_START;
       SERIAL_ECHOPGM("Slave response:");
       SERIAL_ECHO(listenToSlave());
       break;
     case 556: // Set temp
-      talkToSlave("T 0 100");
+      talkToSlave("T0100");
       break;
     case 557:  // Call stepper test    
       talkToSlave("A");
@@ -1379,7 +1379,7 @@ void process_commands()
     case 558: // Send interrupt
       for(int ii=0; ii < 1000; ii++)
       {
-        toggleSlaveClock();
+        slaveStep(0, false);
         delay(1);
       }
       break;    
@@ -1452,7 +1452,7 @@ void process_commands()
       
       
       codenum = millis(); 
-      wait_for_temp(active_extruder, codenum);
+      //wait_for_temp(active_extruder, codenum);
       }
     }
   }

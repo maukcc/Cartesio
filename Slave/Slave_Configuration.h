@@ -1,3 +1,5 @@
+#ifndef _SLAVE_CONFIGURATIONH
+#define _SLAVE_CONFIGURATIONH
 /*
    Slave processor code for RepRapPro mult-extruder machines
    
@@ -8,27 +10,22 @@
    Licence: GPL
 */
 
+#define REPRAPPRO_MULTIMATERIALS
 
+#include "slaveCommands.h"
 
-// Commands
-
-#define GET_T 't'      // Get temperature
-#define SET_T 'T'      // Set temperature
-#define SET_PID 'P'    // Set PID parameters
-#define Q_DDA 'Q'      // Queue DDA parameters
-#define SET_DDA 'D'    // Set DDA parameters from head of queue
-#define STOP 'S'       // Shut down everything
-#define NO_OP 'N'      // Do nothing
-#define TEST 'A'       // For debugging
-#define EXTR 'E'       // Set current extruder
-#define DIR_F 'F'      // Set direction forward
-#define DIR_B 'B'      // Set direction backwards
+//#define DEBUG
 
 // Various...
 
-#define MYSERIAL1 Serial1  // comms here
+#ifdef DEBUG
+#define MYSERIAL1 Serial   // comms to PC
+#define BAUD 115200        // comms speed
+#else
+#define MYSERIAL1 Serial1  // comms to master
 #define BAUD 250000        // comms speed
-#define TEMP_INTERVAL 112  // check temperature this many milliseconds
+#endif
+
 #define BUFLEN 64          // input string
 #define RING_B 32          // DDA parameter ring buffer
 #define HOT_ENDS 2         // number of heaters controlled
@@ -85,16 +82,19 @@
 
 // PID constants
 
+#define TEMP_INTERVAL 500  // check temperature this many milliseconds
 #define PID_MAX 255 // limits current to nozzle
-#define PID_I_MAX 80
-#define KP 2.0
-#define KI 0.01
-#define KD 20.0
+#define KP 0.0059808404
+#define KI 0.0038071420303
+#define KD 0.0120097053954
+#define PID_MAX_MIN 87.10397376
+
+#define TEST_POWER 0.4
+#define TEST_INTERVAL 0.4
+#define TEST_DURATION 240
 
 // Incoming master-clock interrupt on D17 (chip pin 23, PCINT17)
 
-
-
-
+#endif
 
 

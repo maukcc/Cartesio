@@ -24,7 +24,6 @@ void test();
 void command();
 void incomming();
 void configureInterrupt();
-ISR ( PCINT17_void );
 void setDirection(int8_t e, bool d);
 void enable(int8_t e);
 void disable(int8_t e);
@@ -54,12 +53,13 @@ float setTemps[HOT_ENDS];
 
 // PID variables
 
-int temp_iState_max_min[HOT_ENDS];
+float temp_iState_max_min[HOT_ENDS];
 float Kp[HOT_ENDS];
 float Ki[HOT_ENDS];
 float Kd[HOT_ENDS];
-long temp_iState[HOT_ENDS];
-int temp_dState[HOT_ENDS];
+float temp_iState[HOT_ENDS];
+float temp_dState[HOT_ENDS];
+float dt = 0.001*(float)TEMP_INTERVAL;
 
 
 /* *******************************************************************
@@ -81,7 +81,7 @@ void setup()
     disable(i);
     setDirection(i, FORWARDS);
   }
-  currentExtruder = 1;
+  currentExtruder = 0;
   enable(currentExtruder);
   
   for(i = 0; i < HOT_ENDS; i++)
@@ -92,9 +92,9 @@ void setup()
     Kp[i] = KP;
     Ki[i] = KI;
     Kd[i] = KD;
-    temp_iState[i] = 0;
-    temp_dState[i] = 0;
-    temp_iState_max_min[i] = PID_I_MAX/KI;
+    temp_iState[i] = 0.0;
+    temp_dState[i] = 0.0;
+    temp_iState_max_min[i] = PID_MAX_MIN;
     setTemperature(i, 0);
   }
   configureInterrupt();
@@ -131,10 +131,12 @@ inline void setTemperature(int8_t e, int t)
   setTemps[e]=t;
 }
 
+
 inline int getRawTemperature(int8_t e)
 {
   return analogRead(therms[e]);
 }
+
 
 inline float getTemperature(int8_t e)
 {
@@ -142,32 +144,44 @@ inline float getTemperature(int8_t e)
   return ABS_ZERO + TH_BETA/log( (raw*TH_RS/(AD_RANGE - raw)) /TH_R_INF );
 }
 
-inline int getRawTargetTemperature(float t)
+inline float getTargetTemperature(int8_t e)
 {
-  float et = TH_R_INF*exp(TH_BETA/(t - ABS_ZERO));
-  return (int)(0.5 + et*AD_RANGE/(et + TH_RS));  
+  return setTemps[e];
+}
+
+
+inline float pid(int8_t e) 
+{
+   float error, target, current;
+   
+   target = getTargetTemperature(e);
+   current = getTemperature(e);   
+#ifdef DEBUG
+     if(e == currentExtruder)
+     {
+       MYSERIAL1.println(current);
+     }
+#endif   
+   error = target - current;
+
+   float result = Kp[e]*error + Ki[e]*temp_iState[e] + Kd[e]
+	*(error - temp_dState[e])/dt;
+
+   temp_iState[e] += error*dt;
+
+   if (temp_iState[e] < -temp_iState_max_min[e]) temp_iState[e] = -temp_iState_max_min[e];
+   if (temp_iState[e] > temp_iState_max_min[e]) temp_iState[e] = temp_iState_max_min[e];
+   if (result < 0) result = 0;
+   if (result > 1) result = 1;
+   temp_dState[e] = error;
+   return result;
 }
 
 
 void heatControl()
-{
-  int error, pTerm, dTerm, output, target_raw, current_raw;
-  long iTerm;
-  
+{ 
   for(int8_t e = 0; e < HOT_ENDS; e++)
-  {
-     target_raw = getRawTargetTemperature(setTemps[e]);
-     current_raw = getRawTemperature(e);
-     error =  current_raw - target_raw;
-     pTerm = Kp[e] * error;
-     temp_iState[e] += error;
-     temp_iState[e] = constrain(temp_iState[e], -temp_iState_max_min[e], temp_iState_max_min[e]);
-     iTerm = Ki[e] * temp_iState[e];
-     dTerm = Kd[e] * (current_raw - temp_dState[e]);
-     temp_dState[e] = current_raw;
-     output = constrain(pTerm + iTerm - dTerm, 0, PID_MAX);
-     analogWrite(heaters[e], output);
-  }
+     analogWrite(heaters[e], (int)(pid(e)*PID_MAX));
 }
 
 inline void tempCheck()
@@ -209,13 +223,25 @@ inline void disable(int8_t e)
    The main loop and command interpreter
 */
 
-void test()
+void test(int8_t e)
 {
+#ifdef DEBUG  
   for(int i = 0; i < 1000; i++)
   {
-    stepExtruder(1);
+    stepExtruder(currentExtruder);
     delay(1);
   }
+  
+  analogWrite(heaters[e], (int)(TEST_POWER*PID_MAX));
+  float t = 0;
+  while(t < TEST_DURATION)
+  {
+    MYSERIAL1.println(getTemperature(e));
+    delay((int)(1000*TEST_INTERVAL));
+    t += TEST_INTERVAL;
+  }
+  analogWrite(heaters[e], 0);
+#endif
 }
 
 void command()
@@ -223,25 +249,29 @@ void command()
   switch(buf[0])
   {
     case GET_T: // Get temperature of an extruder
-      MYSERIAL1.println(getTemperature(buf[2]-'0'), 1); // 1 dec place
+      MYSERIAL1.println(getTemperature(buf[1]-'0'), 1); // 1 dec place
       break;
+      
+    case GET_TT: // Get target temperature of an extruder
+      MYSERIAL1.println(getTargetTemperature(buf[1]-'0'), 1); // 1 dec place
+      break;      
     
     case SET_T: // Set temperature of an extruder
-      setTemperature(buf[2]-'0', atoi(&buf[4]));
+      setTemperature(buf[1]-'0', atoi(&buf[2]));
       break;
       
     case EXTR:  // Set the current extruder
       disable(currentExtruder);
-      currentExtruder = buf[2]-'0';
+      currentExtruder = buf[1]-'0';
       enable(currentExtruder);
       break;
       
     case DIR_F:  // Set an extruder's direction forwards
-      setDirection(buf[2]-'0', FORWARDS);
+      setDirection(buf[1]-'0', FORWARDS);
       break;
     
     case DIR_B:   // Set an extruder's direction backwards
-      setDirection(buf[2]-'0', BACKWARDS);
+      setDirection(buf[1]-'0', BACKWARDS);
       break;
     
     case SET_PID: // Set PID parameters
@@ -258,8 +288,10 @@ void command()
         break;
     
     case Q_DDA: // Queue DDA parameters
+      break;
     
     case SET_DDA: // Set DDA parameters from head of queue
+      break;
     
     case STOP: // Shut everything down; carry on listening for commands
       stop();
@@ -269,7 +301,7 @@ void command()
       break;
       
     case TEST:
-      test();
+      test(buf[1]-'0');
       break;
       
     default:
@@ -320,7 +352,7 @@ void configureInterrupt()
 {
  PCICR |= (1<<PCIE2);
  PCMSK2 |= (1<<PCINT17);
- MCUCR = (1<<ISC01) | (1<<ISC00); // Falling edge trigger
+ MCUCR = (1<<ISC01) | (1<<ISC00); // Rising and falling edge trigger
  pinMode(INTERRUPT_PIN, INPUT);
  digitalWrite(INTERRUPT_PIN, HIGH); // Set pullup
  interrupts();

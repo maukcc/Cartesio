@@ -1,3 +1,1280 @@
+#include "Marlin.h"
+#include "Sd.h"
+#include "ultralcd.h"
+#include "stepper.h"
+#include "temperature.h"
+#include "language.h"
+
+#ifdef SDSUPPORT
+
+
+
+CardReader::CardReader()
+{
+   filesize = 0;
+   sdpos = 0;
+   sdprinting = false;
+   cardOK = false;
+   saving = false;
+   autostart_atmillis=0;
+
+   autostart_stilltocheck=true; //the sd start is delayed, because otherwise the serial cannot answer fast enought to make contact with the hostsoftware.
+   lastnr=0;
+  //power to SD reader
+  #if SDPOWER > -1
+    SET_OUTPUT(SDPOWER); 
+    WRITE(SDPOWER,HIGH);
+  #endif //SDPOWER
+  
+  autostart_atmillis=millis()+5000;
+}
+
+char *createFilename(char *buffer,const dir_t &p) //buffer>12characters
+{
+  char *pos=buffer;
+  for (uint8_t i = 0; i < 11; i++) 
+  {
+    if (p.name[i] == ' ')continue;
+    if (i == 8) 
+    {
+      *pos++='.';
+    }
+    *pos++=p.name[i];
+  }
+  *pos++=0;
+  return buffer;
+}
+
+
+void  CardReader::lsDive(const char *prepend,SdFile parent)
+{
+  dir_t p;
+ uint8_t cnt=0;
+ 
+  while (parent.readDir(p) > 0)
+  {
+    if( DIR_IS_SUBDIR(&p) && lsAction!=LS_Count && lsAction!=LS_GetFilename) // hence LS_SerialPrint
+    {
+
+      char path[13*2];
+      char lfilename[13];
+      createFilename(lfilename,p);
+      
+      path[0]=0;
+      if(strlen(prepend)==0) //avoid leading / if already in prepend
+      {
+       strcat(path,"/");
+      }
+      strcat(path,prepend);
+      strcat(path,lfilename);
+      strcat(path,"/");
+      
+      //Serial.print(path);
+      
+      SdFile dir;
+      if(!dir.open(parent,lfilename, O_READ))
+      {
+        if(lsAction==LS_SerialPrint)
+        {
+          SERIAL_ECHO_START;
+          SERIAL_ECHOLN(MSG_SD_CANT_OPEN_SUBDIR);
+          SERIAL_ECHOLN(lfilename);
+        }
+      }
+      lsDive(path,dir);
+      //close done automatically by destructor of SdFile
+
+      
+    }
+    else
+    {
+      if (p.name[0] == DIR_NAME_FREE) break;
+      if (p.name[0] == DIR_NAME_DELETED || p.name[0] == '.'|| p.name[0] == '_') continue;
+      if ( p.name[0] == '.')
+      {
+        if ( p.name[1] != '.')
+        continue;
+      }
+      
+      if (!DIR_IS_FILE_OR_SUBDIR(&p)) continue;
+      filenameIsDir=DIR_IS_SUBDIR(&p);
+      
+      
+      if(!filenameIsDir)
+      {
+        if(p.name[8]!='G') continue;
+        if(p.name[9]=='~') continue;
+      }
+      //if(cnt++!=nr) continue;
+      createFilename(filename,p);
+      if(lsAction==LS_SerialPrint)
+      {
+        SERIAL_PROTOCOL(prepend);
+        SERIAL_PROTOCOLLN(filename);
+      }
+      else if(lsAction==LS_Count)
+      {
+        nrFiles++;
+      } 
+      else if(lsAction==LS_GetFilename)
+      {
+        if(cnt==nrFiles)
+          return;
+        cnt++;
+        
+      }
+    }
+  }
+}
+
+void CardReader::ls() 
+{
+  lsAction=LS_SerialPrint;
+  if(lsAction==LS_Count)
+  nrFiles=0;
+
+  root.rewind();
+  lsDive("",root);
+}
+
+
+void CardReader::initsd()
+{
+  cardOK = false;
+  if(root.isOpen())
+    root.close();
+  if (!card.init(SPI_FULL_SPEED,SDSS))
+  {
+    //if (!card.init(SPI_HALF_SPEED,SDSS))
+    SERIAL_ECHO_START;
+    SERIAL_ECHOLNPGM(MSG_SD_INIT_FAIL);
+  }
+  else if (!volume.init(&card))
+  {
+    SERIAL_ERROR_START;
+    SERIAL_ERRORLNPGM(MSG_SD_VOL_INIT_FAIL);
+  }
+  else if (!root.openRoot(&volume)) 
+  {
+    SERIAL_ERROR_START;
+    SERIAL_ERRORLNPGM(MSG_SD_OPENROOT_FAIL);
+  }
+  else 
+  {
+    cardOK = true;
+    SERIAL_ECHO_START;
+    SERIAL_ECHOLNPGM(MSG_SD_CARD_OK);
+  }
+  workDir=root;
+  curDir=&root;
+  /*
+  if(!workDir.openRoot(&volume))
+  {
+    SERIAL_ECHOLNPGM(MSG_SD_WORKDIR_FAIL);
+  }
+  */
+  
+}
+
+void CardReader::setroot()
+{
+  /*if(!workDir.openRoot(&volume))
+  {
+    SERIAL_ECHOLNPGM(MSG_SD_WORKDIR_FAIL);
+  }*/
+  workDir=root;
+  
+  curDir=&workDir;
+}
+void CardReader::release()
+{
+  sdprinting = false;
+  cardOK = false;
+}
+
+void CardReader::startFileprint()
+{
+  if(cardOK)
+  {
+    sdprinting = true;
+    
+  }
+}
+
+void CardReader::pauseSDPrint()
+{
+  if(sdprinting)
+  {
+    sdprinting = false;
+  }
+}
+
+
+
+void CardReader::openFile(char* name,bool read)
+{
+  if(!cardOK)
+    return;
+  file.close();
+  sdprinting = false;
+  
+  
+  SdFile myDir;
+  curDir=&root;
+  char *fname=name;
+  
+  char *dirname_start,*dirname_end;
+  if(name[0]=='/')
+  {
+    dirname_start=strchr(name,'/')+1;
+    while(dirname_start>0)
+    {
+      dirname_end=strchr(dirname_start,'/');
+      //SERIAL_ECHO("start:");SERIAL_ECHOLN((int)(dirname_start-name));
+      //SERIAL_ECHO("end  :");SERIAL_ECHOLN((int)(dirname_end-name));
+      if(dirname_end>0 && dirname_end>dirname_start)
+      {
+        char subdirname[13];
+        strncpy(subdirname, dirname_start, dirname_end-dirname_start);
+        subdirname[dirname_end-dirname_start]=0;
+        SERIAL_ECHOLN(subdirname);
+        if(!myDir.open(curDir,subdirname,O_READ))
+        {
+          SERIAL_PROTOCOLPGM(MSG_SD_OPEN_FILE_FAIL);
+          SERIAL_PROTOCOL(subdirname);
+          SERIAL_PROTOCOLLNPGM(".");
+          return;
+        }
+        else
+          ;//SERIAL_ECHOLN("dive ok");
+          
+        curDir=&myDir; 
+        dirname_start=dirname_end+1;
+      }
+      else // the reminder after all /fsa/fdsa/ is the filename
+      {
+        fname=dirname_start;
+        //SERIAL_ECHOLN("remaider");
+        //SERIAL_ECHOLN(fname);
+        break;
+      }
+      
+    }
+  }
+  else //relative path
+  {
+    curDir=&workDir;
+  }
+  if(read)
+  {
+    if (file.open(curDir, fname, O_READ)) 
+    {
+      filesize = file.fileSize();
+      SERIAL_PROTOCOLPGM(MSG_SD_FILE_OPENED);
+      SERIAL_PROTOCOL(fname);
+      SERIAL_PROTOCOLPGM(MSG_SD_SIZE);
+      SERIAL_PROTOCOLLN(filesize);
+      sdpos = 0;
+      
+      SERIAL_PROTOCOLLNPGM(MSG_SD_FILE_SELECTED);
+      LCD_MESSAGE(fname);
+    }
+    else
+    {
+      SERIAL_PROTOCOLPGM(MSG_SD_OPEN_FILE_FAIL);
+      SERIAL_PROTOCOL(fname);
+      SERIAL_PROTOCOLLNPGM(".");
+    }
+  }
+  else 
+  { //write
+    if (!file.open(curDir, fname, O_CREAT | O_APPEND | O_WRITE | O_TRUNC))
+    {
+      SERIAL_PROTOCOLPGM(MSG_SD_OPEN_FILE_FAIL);
+      SERIAL_PROTOCOL(fname);
+      SERIAL_PROTOCOLLNPGM(".");
+    }
+    else
+    {
+      saving = true;
+      SERIAL_PROTOCOLPGM(MSG_SD_WRITE_TO_FILE);
+      SERIAL_PROTOCOLLN(name);
+      LCD_MESSAGE(fname);
+    }
+  }
+  
+}
+
+void CardReader::removeFile(char* name)
+{
+  if(!cardOK)
+    return;
+  file.close();
+  sdprinting = false;
+  
+  
+  SdFile myDir;
+  curDir=&root;
+  char *fname=name;
+  
+  char *dirname_start,*dirname_end;
+  if(name[0]=='/')
+  {
+    dirname_start=strchr(name,'/')+1;
+    while(dirname_start>0)
+    {
+      dirname_end=strchr(dirname_start,'/');
+      //SERIAL_ECHO("start:");SERIAL_ECHOLN((int)(dirname_start-name));
+      //SERIAL_ECHO("end  :");SERIAL_ECHOLN((int)(dirname_end-name));
+      if(dirname_end>0 && dirname_end>dirname_start)
+      {
+        char subdirname[13];
+        strncpy(subdirname, dirname_start, dirname_end-dirname_start);
+        subdirname[dirname_end-dirname_start]=0;
+        SERIAL_ECHOLN(subdirname);
+        if(!myDir.open(curDir,subdirname,O_READ))
+        {
+          SERIAL_PROTOCOLPGM("open failed, File: ");
+          SERIAL_PROTOCOL(subdirname);
+          SERIAL_PROTOCOLLNPGM(".");
+          return;
+        }
+        else
+          ;//SERIAL_ECHOLN("dive ok");
+          
+        curDir=&myDir; 
+        dirname_start=dirname_end+1;
+      }
+      else // the reminder after all /fsa/fdsa/ is the filename
+      {
+        fname=dirname_start;
+        //SERIAL_ECHOLN("remaider");
+        //SERIAL_ECHOLN(fname);
+        break;
+      }
+      
+    }
+  }
+  else //relative path
+  {
+    curDir=&workDir;
+  }
+    if (file.remove(curDir, fname)) 
+    {
+      SERIAL_PROTOCOLPGM("File deleted:");
+      SERIAL_PROTOCOL(fname);
+      sdpos = 0;
+    }
+    else
+    {
+      SERIAL_PROTOCOLPGM("Deletion failed, File: ");
+      SERIAL_PROTOCOL(fname);
+      SERIAL_PROTOCOLLNPGM(".");
+    }
+  
+}
+
+void CardReader::getStatus()
+{
+  if(cardOK){
+    SERIAL_PROTOCOLPGM(MSG_SD_PRINTING_BYTE);
+    SERIAL_PROTOCOL(sdpos);
+    SERIAL_PROTOCOLPGM("/");
+    SERIAL_PROTOCOLLN(filesize);
+  }
+  else{
+    SERIAL_PROTOCOLLNPGM(MSG_SD_NOT_PRINTING);
+  }
+}
+void CardReader::write_command(char *buf)
+{
+  char* begin = buf;
+  char* npos = 0;
+  char* end = buf + strlen(buf) - 1;
+
+  file.writeError = false;
+  if((npos = strchr(buf, 'N')) != NULL)
+  {
+    begin = strchr(npos, ' ') + 1;
+    end = strchr(npos, '*') - 1;
+  }
+  end[1] = '\r';
+  end[2] = '\n';
+  end[3] = '\0';
+  file.write(begin);
+  if (file.writeError)
+  {
+    SERIAL_ERROR_START;
+    SERIAL_ERRORLNPGM(MSG_SD_ERR_WRITE_TO_FILE);
+  }
+}
+
+
+void CardReader::checkautostart(bool force)
+{
+  if(!force)
+  {
+    if(!autostart_stilltocheck)
+      return;
+    if(autostart_atmillis<millis())
+      return;
+  }
+  autostart_stilltocheck=false;
+  if(!cardOK)
+  {
+    initsd();
+    if(!cardOK) //fail
+      return;
+  }
+  
+  char autoname[30];
+  sprintf(autoname,"auto%i.g",lastnr);
+  for(int8_t i=0;i<(int)strlen(autoname);i++)
+    autoname[i]=tolower(autoname[i]);
+  dir_t p;
+
+  root.rewind();
+  
+  bool found=false;
+  while (root.readDir(p) > 0) 
+  {
+    for(int8_t i=0;i<(int)strlen((char*)p.name);i++)
+    p.name[i]=tolower(p.name[i]);
+    //Serial.print((char*)p.name);
+    //Serial.print(" ");
+    //Serial.println(autoname);
+    if(p.name[9]!='~') //skip safety copies
+    if(strncmp((char*)p.name,autoname,5)==0)
+    {
+      char cmd[30];
+
+      sprintf(cmd,"M23 %s",autoname);
+      enquecommand(cmd);
+      enquecommand("M24");
+      found=true;
+    }
+  }
+  if(!found)
+    lastnr=-1;
+  else
+    lastnr++;
+}
+
+void CardReader::closefile()
+{
+  file.sync();
+  file.close();
+  saving = false; 
+}
+
+void CardReader::getfilename(const uint8_t nr)
+{
+  curDir=&workDir;
+  lsAction=LS_GetFilename;
+  nrFiles=nr;
+  curDir->rewind();
+  lsDive("",*curDir);
+  
+}
+
+uint16_t CardReader::getnrfilenames()
+{
+  curDir=&workDir;
+  lsAction=LS_Count;
+  nrFiles=0;
+  curDir->rewind();
+  lsDive("",*curDir);
+  //SERIAL_ECHOLN(nrFiles);
+  return nrFiles;
+}
+
+void CardReader::chdir(const char * relpath)
+{
+  SdFile newfile;
+  SdFile *parent=&root;
+  
+  if(workDir.isOpen())
+    parent=&workDir;
+  
+  if(!newfile.open(*parent,relpath, O_READ))
+  {
+   SERIAL_ECHO_START;
+   SERIAL_ECHOPGM(MSG_SD_CANT_ENTER_SUBDIR);
+   SERIAL_ECHOLN(relpath);
+  }
+  else
+  {
+    workDirParentParent=workDirParent;
+    workDirParent=*parent;
+    
+    workDir=newfile;
+  }
+}
+
+void CardReader::updir()
+{
+  if(!workDir.isRoot())
+  {
+    workDir=workDirParent;
+    workDirParent=workDirParentParent;
+  }
+}
+
+
+void CardReader::printingHasFinished()
+{
+ st_synchronize();
+ quickStop();
+ sdprinting = false;
+ if(SD_FINISHED_STEPPERRELEASE)
+ {
+   //finishAndDisableSteppers();
+   enquecommand(SD_FINISHED_RELEASECOMMAND);
+ }
+}
+void CardReader::fast_xfer(char* strchr_pointer)
+  {
+    char *pstr;
+    boolean done = false;
+    
+    //force heater pins low
+    if(HEATER_0_PIN > -1) WRITE(HEATER_0_PIN,LOW);
+    if(HEATER_BED_PIN > -1) WRITE(HEATER_BED_PIN,LOW);
+    
+    lastxferchar = 1;
+    xferbytes = 0;
+    
+    pstr = strstr(strchr_pointer, " ");
+    //pstr = strchr_pointer;
+
+    if(pstr == NULL)
+    {
+      SERIAL_ECHOLN("invalid command");
+      return;
+    }
+    
+    *pstr = '\0';
+    
+    //check mode (currently only RAW is supported
+    if(strcmp(strchr_pointer, "RAW") != 0)
+    {
+      SERIAL_ECHOLN("Invalid transfer codec");
+      return;
+    }else{
+      SERIAL_ECHOPGM("Selected codec: ");
+      SERIAL_ECHOLN(strchr_pointer+4);
+    }
+    
+    if (!file.open(&root, pstr+1, O_CREAT | O_APPEND | O_WRITE | O_TRUNC))
+    {
+      SERIAL_ECHOPGM("open failed, File: ");
+      SERIAL_ECHOLN(pstr+1);
+      SERIAL_ECHOPGM(".");
+    }else{
+      SERIAL_ECHOPGM("Writing to file: ");
+      SERIAL_ECHOLN(pstr+1);
+    }
+        
+    SERIAL_ECHOLN("ok");
+    
+    //RAW transfer codec
+    //Host sends \0 then up to SD_FAST_XFER_CHUNK_SIZE then \0
+    //when host is done, it sends \0\0.
+    //if a non \0 character is recieved at the beginning, host has failed somehow, kill the transfer.
+    
+    //read SD_FAST_XFER_CHUNK_SIZE bytes (or until \0 is recieved)
+    while(!done)
+    {
+      while(!MYSERIAL.available())
+      {
+      }
+      if(MYSERIAL.peek() != 0)
+      {
+        //host has failed, this isn't a RAW chunk, it's an actual command
+        file.sync();
+        file.close();
+        SERIAL_ECHOLN("Not RAW data");
+        return;
+      }
+      //clear the initial 0
+      MYSERIAL.read();
+      for(int i=0;i<SD_FAST_XFER_CHUNK_SIZE+1;i++)
+      {
+        while(!MYSERIAL.available())
+        {
+        }
+        lastxferchar = MYSERIAL.read();
+        //buffer the data...
+        fastxferbuffer[i] = lastxferchar;
+        
+        xferbytes++;
+        
+        if(lastxferchar == 0)
+          break;
+      }
+      
+      if(fastxferbuffer[0] != 0)
+      {
+        fastxferbuffer[SD_FAST_XFER_CHUNK_SIZE] = 0;
+        file.write(fastxferbuffer);
+        SERIAL_ECHOLN("ok");
+      }else{
+        SERIAL_ECHOPGM("Wrote ");
+        SERIAL_ECHO(xferbytes);
+        SERIAL_ECHOLN(" bytes.");
+        done = true;
+      }
+    }
+
+    file.sync();
+    file.close();
+  }
+
+#endif //SDSUPPORT
+/* Arduino Sd2Card Library
+ * Copyright (C) 2009 by William Greiman
+ *
+ * This file is part of the Arduino Sd2Card Library
+ *
+ * This Library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This Library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with the Arduino Sd2Card Library.  If not, see
+ * <http://www.gnu.org/licenses/>.
+ */
+#include "Marlin.h"
+
+#ifdef SDSUPPORT
+#include "Sd.h"
+//------------------------------------------------------------------------------
+#ifndef SOFTWARE_SPI
+// functions for hardware SPI
+//------------------------------------------------------------------------------
+// make sure SPCR rate is in expected bits
+#if (SPR0 != 0 || SPR1 != 1)
+#error unexpected SPCR bits
+#endif
+/**
+ * Initialize hardware SPI
+ * Set SCK rate to F_CPU/pow(2, 1 + spiRate) for spiRate [0,6]
+ */
+static void spiInit(uint8_t spiRate) {
+  // See avr processor documentation
+  SPCR = (1 << SPE) | (1 << MSTR) | (spiRate >> 1);
+  SPSR = spiRate & 1 || spiRate == 6 ? 0 : 1 << SPI2X;
+}
+//------------------------------------------------------------------------------
+/** SPI receive a byte */
+static uint8_t spiRec() {
+  SPDR = 0XFF;
+  while (!(SPSR & (1 << SPIF)));
+  return SPDR;
+}
+//------------------------------------------------------------------------------
+/** SPI read data - only one call so force inline */
+static inline __attribute__((always_inline))
+  void spiRead(uint8_t* buf, uint16_t nbyte) {
+  if (nbyte-- == 0) return;
+  SPDR = 0XFF;
+  for (uint16_t i = 0; i < nbyte; i++) {
+    while (!(SPSR & (1 << SPIF)));
+    buf[i] = SPDR;
+    SPDR = 0XFF;
+  }
+  while (!(SPSR & (1 << SPIF)));
+  buf[nbyte] = SPDR;
+}
+//------------------------------------------------------------------------------
+/** SPI send a byte */
+static void spiSend(uint8_t b) {
+  SPDR = b;
+  while (!(SPSR & (1 << SPIF)));
+}
+//------------------------------------------------------------------------------
+/** SPI send block - only one call so force inline */
+static inline __attribute__((always_inline))
+  void spiSendBlock(uint8_t token, const uint8_t* buf) {
+  SPDR = token;
+  for (uint16_t i = 0; i < 512; i += 2) {
+    while (!(SPSR & (1 << SPIF)));
+    SPDR = buf[i];
+    while (!(SPSR & (1 << SPIF)));
+    SPDR = buf[i + 1];
+  }
+  while (!(SPSR & (1 << SPIF)));
+}
+//------------------------------------------------------------------------------
+#else  // SOFTWARE_SPI
+//------------------------------------------------------------------------------
+/** nop to tune soft SPI timing */
+#define nop asm volatile ("nop\n\t")
+//------------------------------------------------------------------------------
+/** Soft SPI receive byte */
+static uint8_t spiRec() {
+  uint8_t data = 0;
+  // no interrupts during byte receive - about 8 us
+  cli();
+  // output pin high - like sending 0XFF
+  fastDigitalWrite(SPI_MOSI_PIN, HIGH);
+
+  for (uint8_t i = 0; i < 8; i++) {
+    fastDigitalWrite(SPI_SCK_PIN, HIGH);
+
+    // adjust so SCK is nice
+    nop;
+    nop;
+
+    data <<= 1;
+
+    if (fastDigitalRead(SPI_MISO_PIN)) data |= 1;
+
+    fastDigitalWrite(SPI_SCK_PIN, LOW);
+  }
+  // enable interrupts
+  sei();
+  return data;
+}
+//------------------------------------------------------------------------------
+/** Soft SPI read data */
+static void spiRead(uint8_t* buf, uint16_t nbyte) {
+  for (uint16_t i = 0; i < nbyte; i++) {
+    buf[i] = spiRec();
+  }
+}
+//------------------------------------------------------------------------------
+/** Soft SPI send byte */
+static void spiSend(uint8_t data) {
+  // no interrupts during byte send - about 8 us
+  cli();
+  for (uint8_t i = 0; i < 8; i++) {
+    fastDigitalWrite(SPI_SCK_PIN, LOW);
+
+    fastDigitalWrite(SPI_MOSI_PIN, data & 0X80);
+
+    data <<= 1;
+
+    fastDigitalWrite(SPI_SCK_PIN, HIGH);
+  }
+  // hold SCK high for a few ns
+  nop;
+  nop;
+  nop;
+  nop;
+
+  fastDigitalWrite(SPI_SCK_PIN, LOW);
+  // enable interrupts
+  sei();
+}
+//------------------------------------------------------------------------------
+/** Soft SPI send block */
+  void spiSendBlock(uint8_t token, const uint8_t* buf) {
+  spiSend(token);
+  for (uint16_t i = 0; i < 512; i++) {
+    spiSend(buf[i]);
+  }
+}
+#endif  // SOFTWARE_SPI
+//------------------------------------------------------------------------------
+// send command and return error code.  Return zero for OK
+uint8_t Sd2Card::cardCommand(uint8_t cmd, uint32_t arg) {
+  // select card
+  chipSelectLow();
+
+  // wait up to 300 ms if busy
+  waitNotBusy(300);
+
+  // send command
+  spiSend(cmd | 0x40);
+
+  // send argument
+  for (int8_t s = 24; s >= 0; s -= 8) spiSend(arg >> s);
+
+  // send CRC
+  uint8_t crc = 0XFF;
+  if (cmd == CMD0) crc = 0X95;  // correct crc for CMD0 with arg 0
+  if (cmd == CMD8) crc = 0X87;  // correct crc for CMD8 with arg 0X1AA
+  spiSend(crc);
+
+  // skip stuff byte for stop read
+  if (cmd == CMD12) spiRec();
+
+  // wait for response
+  for (uint8_t i = 0; ((status_ = spiRec()) & 0X80) && i != 0XFF; i++);
+  return status_;
+}
+//------------------------------------------------------------------------------
+/**
+ * Determine the size of an SD flash memory card.
+ *
+ * \return The number of 512 byte data blocks in the card
+ *         or zero if an error occurs.
+ */
+uint32_t Sd2Card::cardSize() {
+  csd_t csd;
+  if (!readCSD(&csd)) return 0;
+  if (csd.v1.csd_ver == 0) {
+    uint8_t read_bl_len = csd.v1.read_bl_len;
+    uint16_t c_size = (csd.v1.c_size_high << 10)
+                      | (csd.v1.c_size_mid << 2) | csd.v1.c_size_low;
+    uint8_t c_size_mult = (csd.v1.c_size_mult_high << 1)
+                          | csd.v1.c_size_mult_low;
+    return (uint32_t)(c_size + 1) << (c_size_mult + read_bl_len - 7);
+  } else if (csd.v2.csd_ver == 1) {
+    uint32_t c_size = ((uint32_t)csd.v2.c_size_high << 16)
+                      | (csd.v2.c_size_mid << 8) | csd.v2.c_size_low;
+    return (c_size + 1) << 10;
+  } else {
+    error(SD_CARD_ERROR_BAD_CSD);
+    return 0;
+  }
+}
+//------------------------------------------------------------------------------
+void Sd2Card::chipSelectHigh() {
+  digitalWrite(chipSelectPin_, HIGH);
+}
+//------------------------------------------------------------------------------
+void Sd2Card::chipSelectLow() {
+#ifndef SOFTWARE_SPI
+  spiInit(spiRate_);
+#endif  // SOFTWARE_SPI
+  digitalWrite(chipSelectPin_, LOW);
+}
+//------------------------------------------------------------------------------
+/** Erase a range of blocks.
+ *
+ * \param[in] firstBlock The address of the first block in the range.
+ * \param[in] lastBlock The address of the last block in the range.
+ *
+ * \note This function requests the SD card to do a flash erase for a
+ * range of blocks.  The data on the card after an erase operation is
+ * either 0 or 1, depends on the card vendor.  The card must support
+ * single block erase.
+ *
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::erase(uint32_t firstBlock, uint32_t lastBlock) {
+  csd_t csd;
+  if (!readCSD(&csd)) goto fail;
+  // check for single block erase
+  if (!csd.v1.erase_blk_en) {
+    // erase size mask
+    uint8_t m = (csd.v1.sector_size_high << 1) | csd.v1.sector_size_low;
+    if ((firstBlock & m) != 0 || ((lastBlock + 1) & m) != 0) {
+      // error card can't erase specified area
+      error(SD_CARD_ERROR_ERASE_SINGLE_BLOCK);
+      goto fail;
+    }
+  }
+  if (type_ != SD_CARD_TYPE_SDHC) {
+    firstBlock <<= 9;
+    lastBlock <<= 9;
+  }
+  if (cardCommand(CMD32, firstBlock)
+    || cardCommand(CMD33, lastBlock)
+    || cardCommand(CMD38, 0)) {
+      error(SD_CARD_ERROR_ERASE);
+      goto fail;
+  }
+  if (!waitNotBusy(SD_ERASE_TIMEOUT)) {
+    error(SD_CARD_ERROR_ERASE_TIMEOUT);
+    goto fail;
+  }
+  chipSelectHigh();
+  return true;
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** Determine if card supports single block erase.
+ *
+ * \return The value one, true, is returned if single block erase is supported.
+ * The value zero, false, is returned if single block erase is not supported.
+ */
+bool Sd2Card::eraseSingleBlockEnable() {
+  csd_t csd;
+  return readCSD(&csd) ? csd.v1.erase_blk_en : false;
+}
+//------------------------------------------------------------------------------
+/**
+ * Initialize an SD flash memory card.
+ *
+ * \param[in] sckRateID SPI clock rate selector. See setSckRate().
+ * \param[in] chipSelectPin SD chip select pin number.
+ *
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.  The reason for failure
+ * can be determined by calling errorCode() and errorData().
+ */
+bool Sd2Card::init(uint8_t sckRateID, uint8_t chipSelectPin) {
+  errorCode_ = type_ = 0;
+  chipSelectPin_ = chipSelectPin;
+  // 16-bit init start time allows over a minute
+  uint16_t t0 = (uint16_t)millis();
+  uint32_t arg;
+
+  // set pin modes
+  pinMode(chipSelectPin_, OUTPUT);
+  chipSelectHigh();
+  pinMode(SPI_MISO_PIN, INPUT);
+  pinMode(SPI_MOSI_PIN, OUTPUT);
+  pinMode(SPI_SCK_PIN, OUTPUT);
+
+#ifndef SOFTWARE_SPI
+  // SS must be in output mode even it is not chip select
+  pinMode(SS_PIN, OUTPUT);
+  // set SS high - may be chip select for another SPI device
+#if SET_SPI_SS_HIGH
+  digitalWrite(SS_PIN, HIGH);
+#endif  // SET_SPI_SS_HIGH
+  // set SCK rate for initialization commands
+  spiRate_ = SPI_SD_INIT_RATE;
+  spiInit(spiRate_);
+#endif  // SOFTWARE_SPI
+
+  // must supply min of 74 clock cycles with CS high.
+  for (uint8_t i = 0; i < 10; i++) spiSend(0XFF);
+
+  // command to go idle in SPI mode
+  while ((status_ = cardCommand(CMD0, 0)) != R1_IDLE_STATE) {
+    if (((uint16_t)millis() - t0) > SD_INIT_TIMEOUT) {
+      error(SD_CARD_ERROR_CMD0);
+      goto fail;
+    }
+  }
+  // check SD version
+  if ((cardCommand(CMD8, 0x1AA) & R1_ILLEGAL_COMMAND)) {
+    type(SD_CARD_TYPE_SD1);
+  } else {
+    // only need last byte of r7 response
+    for (uint8_t i = 0; i < 4; i++) status_ = spiRec();
+    if (status_ != 0XAA) {
+      error(SD_CARD_ERROR_CMD8);
+      goto fail;
+    }
+    type(SD_CARD_TYPE_SD2);
+  }
+  // initialize card and send host supports SDHC if SD2
+  arg = type() == SD_CARD_TYPE_SD2 ? 0X40000000 : 0;
+
+  while ((status_ = cardAcmd(ACMD41, arg)) != R1_READY_STATE) {
+    // check for timeout
+    if (((uint16_t)millis() - t0) > SD_INIT_TIMEOUT) {
+      error(SD_CARD_ERROR_ACMD41);
+      goto fail;
+    }
+  }
+  // if SD2 read OCR register to check for SDHC card
+  if (type() == SD_CARD_TYPE_SD2) {
+    if (cardCommand(CMD58, 0)) {
+      error(SD_CARD_ERROR_CMD58);
+      goto fail;
+    }
+    if ((spiRec() & 0XC0) == 0XC0) type(SD_CARD_TYPE_SDHC);
+    // discard rest of ocr - contains allowed voltage range
+    for (uint8_t i = 0; i < 3; i++) spiRec();
+  }
+  chipSelectHigh();
+
+#ifndef SOFTWARE_SPI
+  return setSckRate(sckRateID);
+#else  // SOFTWARE_SPI
+  return true;
+#endif  // SOFTWARE_SPI
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/**
+ * Read a 512 byte block from an SD card.
+ *
+ * \param[in] blockNumber Logical block to be read.
+ * \param[out] dst Pointer to the location that will receive the data.
+
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::readBlock(uint32_t blockNumber, uint8_t* dst) {
+  // use address if not SDHC card
+  if (type()!= SD_CARD_TYPE_SDHC) blockNumber <<= 9;
+  if (cardCommand(CMD17, blockNumber)) {
+    error(SD_CARD_ERROR_CMD17);
+    goto fail;
+  }
+  return readData(dst, 512);
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** Read one data block in a multiple block read sequence
+ *
+ * \param[in] dst Pointer to the location for the data to be read.
+ *
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::readData(uint8_t *dst) {
+  chipSelectLow();
+  return readData(dst, 512);
+}
+//------------------------------------------------------------------------------
+bool Sd2Card::readData(uint8_t* dst, uint16_t count) {
+  // wait for start block token
+  uint16_t t0 = millis();
+  while ((status_ = spiRec()) == 0XFF) {
+    if (((uint16_t)millis() - t0) > SD_READ_TIMEOUT) {
+      error(SD_CARD_ERROR_READ_TIMEOUT);
+      goto fail;
+    }
+  }
+  if (status_ != DATA_START_BLOCK) {
+    error(SD_CARD_ERROR_READ);
+    goto fail;
+  }
+  // transfer data
+  spiRead(dst, count);
+
+  // discard CRC
+  spiRec();
+  spiRec();
+  chipSelectHigh();
+  return true;
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** read CID or CSR register */
+bool Sd2Card::readRegister(uint8_t cmd, void* buf) {
+  uint8_t* dst = reinterpret_cast<uint8_t*>(buf);
+  if (cardCommand(cmd, 0)) {
+    error(SD_CARD_ERROR_READ_REG);
+    goto fail;
+  }
+  return readData(dst, 16);
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** Start a read multiple blocks sequence.
+ *
+ * \param[in] blockNumber Address of first block in sequence.
+ *
+ * \note This function is used with readData() and readStop() for optimized
+ * multiple block reads.  SPI chipSelect must be low for the entire sequence.
+ *
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::readStart(uint32_t blockNumber) {
+  if (type()!= SD_CARD_TYPE_SDHC) blockNumber <<= 9;
+  if (cardCommand(CMD18, blockNumber)) {
+    error(SD_CARD_ERROR_CMD18);
+    goto fail;
+  }
+  chipSelectHigh();
+  return true;
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** End a read multiple blocks sequence.
+ *
+* \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::readStop() {
+  chipSelectLow();
+  if (cardCommand(CMD12, 0)) {
+    error(SD_CARD_ERROR_CMD12);
+    goto fail;
+  }
+  chipSelectHigh();
+  return true;
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/**
+ * Set the SPI clock rate.
+ *
+ * \param[in] sckRateID A value in the range [0, 6].
+ *
+ * The SPI clock will be set to F_CPU/pow(2, 1 + sckRateID). The maximum
+ * SPI rate is F_CPU/2 for \a sckRateID = 0 and the minimum rate is F_CPU/128
+ * for \a scsRateID = 6.
+ *
+ * \return The value one, true, is returned for success and the value zero,
+ * false, is returned for an invalid value of \a sckRateID.
+ */
+bool Sd2Card::setSckRate(uint8_t sckRateID) {
+  if (sckRateID > 6) {
+    error(SD_CARD_ERROR_SCK_RATE);
+    return false;
+  }
+  spiRate_ = sckRateID;
+  return true;
+}
+//------------------------------------------------------------------------------
+// wait for card to go not busy
+bool Sd2Card::waitNotBusy(uint16_t timeoutMillis) {
+  uint16_t t0 = millis();
+  while (spiRec() != 0XFF) {
+    if (((uint16_t)millis() - t0) >= timeoutMillis) goto fail;
+  }
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+/**
+ * Writes a 512 byte block to an SD card.
+ *
+ * \param[in] blockNumber Logical block to be written.
+ * \param[in] src Pointer to the location of the data to be written.
+ * \return The value one, true, is returned for success and
+
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::writeBlock(uint32_t blockNumber, const uint8_t* src) {
+  // use address if not SDHC card
+  if (type() != SD_CARD_TYPE_SDHC) blockNumber <<= 9;
+  if (cardCommand(CMD24, blockNumber)) {
+    error(SD_CARD_ERROR_CMD24);
+    goto fail;
+  }
+  if (!writeData(DATA_START_BLOCK, src)) goto fail;
+
+  // wait for flash programming to complete
+  if (!waitNotBusy(SD_WRITE_TIMEOUT)) {
+    error(SD_CARD_ERROR_WRITE_TIMEOUT);
+    goto fail;
+  }
+  // response is r2 so get and check two bytes for nonzero
+  if (cardCommand(CMD13, 0) || spiRec()) {
+    error(SD_CARD_ERROR_WRITE_PROGRAMMING);
+    goto fail;
+  }
+  chipSelectHigh();
+  return true;
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** Write one data block in a multiple block write sequence
+ * \param[in] src Pointer to the location of the data to be written.
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::writeData(const uint8_t* src) {
+  chipSelectLow();
+  // wait for previous write to finish
+  if (!waitNotBusy(SD_WRITE_TIMEOUT)) goto fail;
+  if (!writeData(WRITE_MULTIPLE_TOKEN, src)) goto fail;
+  chipSelectHigh();
+  return true;
+
+ fail:
+  error(SD_CARD_ERROR_WRITE_MULTIPLE);
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+// send one block of data for write block or write multiple blocks
+bool Sd2Card::writeData(uint8_t token, const uint8_t* src) {
+  spiSendBlock(token, src);
+
+  spiSend(0xff);  // dummy crc
+  spiSend(0xff);  // dummy crc
+
+  status_ = spiRec();
+  if ((status_ & DATA_RES_MASK) != DATA_RES_ACCEPTED) {
+    error(SD_CARD_ERROR_WRITE);
+    goto fail;
+  }
+  return true;
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** Start a write multiple blocks sequence.
+ *
+ * \param[in] blockNumber Address of first block in sequence.
+ * \param[in] eraseCount The number of blocks to be pre-erased.
+ *
+ * \note This function is used with writeData() and writeStop()
+ * for optimized multiple block writes.
+ *
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::writeStart(uint32_t blockNumber, uint32_t eraseCount) {
+  // send pre-erase count
+  if (cardAcmd(ACMD23, eraseCount)) {
+    error(SD_CARD_ERROR_ACMD23);
+    goto fail;
+  }
+  // use address if not SDHC card
+  if (type() != SD_CARD_TYPE_SDHC) blockNumber <<= 9;
+  if (cardCommand(CMD25, blockNumber)) {
+    error(SD_CARD_ERROR_CMD25);
+    goto fail;
+  }
+  chipSelectHigh();
+  return true;
+
+ fail:
+  chipSelectHigh();
+  return false;
+}
+//------------------------------------------------------------------------------
+/** End a write multiple blocks sequence.
+ *
+* \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.
+ */
+bool Sd2Card::writeStop() {
+  chipSelectLow();
+  if (!waitNotBusy(SD_WRITE_TIMEOUT)) goto fail;
+  spiSend(STOP_TRAN_TOKEN);
+  if (!waitNotBusy(SD_WRITE_TIMEOUT)) goto fail;
+  chipSelectHigh();
+  return true;
+
+ fail:
+  error(SD_CARD_ERROR_STOP_TRAN);
+  chipSelectHigh();
+  return false;
+}
+
+
+#endif
 /* Arduino SdFat Library
  * Copyright (C) 2009 by William Greiman
  *
@@ -21,7 +1298,7 @@
 #include "Marlin.h"
 #ifdef SDSUPPORT
 
-#include "SdBaseFile.h"
+#include "Sd.h"
 //------------------------------------------------------------------------------
 // pointer to cwd directory
 SdBaseFile* SdBaseFile::cwd_ = 0;
@@ -1788,4 +3065,580 @@ void (*SdBaseFile::oldDateTime_)(uint16_t& date, uint16_t& time) = 0;  // NOLINT
 #endif  // ALLOW_DEPRECATED_FUNCTIONS
 
 
+#endif
+/* Arduino SdFat Library
+ * Copyright (C) 2008 by William Greiman
+ *
+ * This file is part of the Arduino SdFat Library
+ *
+ * This Library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This Library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with the Arduino SdFat Library.  If not, see
+ * <http://www.gnu.org/licenses/>.
+ */
+#include "Marlin.h"
+
+#ifdef SDSUPPORT
+#include "Sd.h"
+
+//------------------------------------------------------------------------------
+/** Amount of free RAM
+ * \return The number of free bytes.
+ */
+int SdFatUtil::FreeRam() {
+  extern int  __bss_end;
+  extern int* __brkval;
+  int free_memory;
+  if (reinterpret_cast<int>(__brkval) == 0) {
+    // if no heap use from end of bss section
+    free_memory = reinterpret_cast<int>(&free_memory)
+                  - reinterpret_cast<int>(&__bss_end);
+  } else {
+    // use from top of stack to heap
+    free_memory = reinterpret_cast<int>(&free_memory)
+                  - reinterpret_cast<int>(__brkval);
+  }
+  return free_memory;
+}
+//------------------------------------------------------------------------------
+/** %Print a string in flash memory.
+ *
+ * \param[in] pr Print object for output.
+ * \param[in] str Pointer to string stored in flash memory.
+ */
+void SdFatUtil::print_P( PGM_P str) {
+  for (uint8_t c; (c = pgm_read_byte(str)); str++) MYSERIAL.write(c);
+}
+//------------------------------------------------------------------------------
+/** %Print a string in flash memory followed by a CR/LF.
+ *
+ * \param[in] pr Print object for output.
+ * \param[in] str Pointer to string stored in flash memory.
+ */
+void SdFatUtil::println_P( PGM_P str) {
+  print_P( str);
+  MYSERIAL.println();
+}
+//------------------------------------------------------------------------------
+/** %Print a string in flash memory to Serial.
+ *
+ * \param[in] str Pointer to string stored in flash memory.
+ */
+void SdFatUtil::SerialPrint_P(PGM_P str) {
+  print_P(str);
+}
+//------------------------------------------------------------------------------
+/** %Print a string in flash memory to Serial followed by a CR/LF.
+ *
+ * \param[in] str Pointer to string stored in flash memory.
+ */
+void SdFatUtil::SerialPrintln_P(PGM_P str) {
+  println_P( str);
+}
+#endif
+/* Arduino SdFat Library
+ * Copyright (C) 2009 by William Greiman
+ *
+ * This file is part of the Arduino SdFat Library
+ *
+ * This Library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This Library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with the Arduino SdFat Library.  If not, see
+ * <http://www.gnu.org/licenses/>.
+ */
+#include "Marlin.h"
+
+#ifdef SDSUPPORT
+#include "Sd.h"
+/**  Create a file object and open it in the current working directory.
+ *
+ * \param[in] path A path with a valid 8.3 DOS name for a file to be opened.
+ *
+ * \param[in] oflag Values for \a oflag are constructed by a bitwise-inclusive
+ * OR of open flags. see SdBaseFile::open(SdBaseFile*, const char*, uint8_t).
+ */
+SdFile::SdFile(const char* path, uint8_t oflag) : SdBaseFile(path, oflag) {
+}
+//------------------------------------------------------------------------------
+/** Write data to an open file.
+ *
+ * \note Data is moved to the cache but may not be written to the
+ * storage device until sync() is called.
+ *
+ * \param[in] buf Pointer to the location of the data to be written.
+ *
+ * \param[in] nbyte Number of bytes to write.
+ *
+ * \return For success write() returns the number of bytes written, always
+ * \a nbyte.  If an error occurs, write() returns -1.  Possible errors
+ * include write() is called before a file has been opened, write is called
+ * for a read-only file, device is full, a corrupt file system or an I/O error.
+ *
+ */
+int16_t SdFile::write(const void* buf, uint16_t nbyte) {
+  return SdBaseFile::write(buf, nbyte);
+}
+//------------------------------------------------------------------------------
+/** Write a byte to a file. Required by the Arduino Print class.
+ * \param[in] b the byte to be written.
+ * Use writeError to check for errors.
+ */
+#if ARDUINO >= 100
+    size_t SdFile::write(uint8_t b)
+#else
+  void SdFile::write(uint8_t b)
+#endif
+{
+  SdBaseFile::write(&b, 1);
+}
+//------------------------------------------------------------------------------
+/** Write a string to a file. Used by the Arduino Print class.
+ * \param[in] str Pointer to the string.
+ * Use writeError to check for errors.
+ */
+void SdFile::write(const char* str) {
+  SdBaseFile::write(str, strlen(str));
+}
+//------------------------------------------------------------------------------
+/** Write a PROGMEM string to a file.
+ * \param[in] str Pointer to the PROGMEM string.
+ * Use writeError to check for errors.
+ */
+void SdFile::write_P(PGM_P str) {
+  for (uint8_t c; (c = pgm_read_byte(str)); str++) write(c);
+}
+//------------------------------------------------------------------------------
+/** Write a PROGMEM string followed by CR/LF to a file.
+ * \param[in] str Pointer to the PROGMEM string.
+ * Use writeError to check for errors.
+ */
+void SdFile::writeln_P(PGM_P str) {
+  write_P(str);
+  write_P(PSTR("\r\n"));
+}
+
+
+#endif
+/* Arduino SdFat Library
+ * Copyright (C) 2009 by William Greiman
+ *
+ * This file is part of the Arduino SdFat Library
+ *
+ * This Library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This Library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with the Arduino SdFat Library.  If not, see
+ * <http://www.gnu.org/licenses/>.
+ */
+#include "Marlin.h"
+#ifdef SDSUPPORT
+
+#include "Sd.h"
+//------------------------------------------------------------------------------
+#if !USE_MULTIPLE_CARDS
+// raw block cache
+uint32_t SdVolume::cacheBlockNumber_;  // current block number
+cache_t  SdVolume::cacheBuffer_;       // 512 byte cache for Sd2Card
+Sd2Card* SdVolume::sdCard_;            // pointer to SD card object
+bool     SdVolume::cacheDirty_;        // cacheFlush() will write block if true
+uint32_t SdVolume::cacheMirrorBlock_;  // mirror  block for second FAT
+#endif  // USE_MULTIPLE_CARDS
+//------------------------------------------------------------------------------
+// find a contiguous group of clusters
+bool SdVolume::allocContiguous(uint32_t count, uint32_t* curCluster) {
+  // start of group
+  uint32_t bgnCluster;
+  // end of group
+  uint32_t endCluster;
+  // last cluster of FAT
+  uint32_t fatEnd = clusterCount_ + 1;
+
+  // flag to save place to start next search
+  bool setStart;
+
+  // set search start cluster
+  if (*curCluster) {
+    // try to make file contiguous
+    bgnCluster = *curCluster + 1;
+
+    // don't save new start location
+    setStart = false;
+  } else {
+    // start at likely place for free cluster
+    bgnCluster = allocSearchStart_;
+
+    // save next search start if one cluster
+    setStart = count == 1;
+  }
+  // end of group
+  endCluster = bgnCluster;
+
+  // search the FAT for free clusters
+  for (uint32_t n = 0;; n++, endCluster++) {
+    // can't find space checked all clusters
+    if (n >= clusterCount_) goto fail;
+
+    // past end - start from beginning of FAT
+    if (endCluster > fatEnd) {
+      bgnCluster = endCluster = 2;
+    }
+    uint32_t f;
+    if (!fatGet(endCluster, &f)) goto fail;
+
+    if (f != 0) {
+      // cluster in use try next cluster as bgnCluster
+      bgnCluster = endCluster + 1;
+    } else if ((endCluster - bgnCluster + 1) == count) {
+      // done - found space
+      break;
+    }
+  }
+  // mark end of chain
+  if (!fatPutEOC(endCluster)) goto fail;
+
+  // link clusters
+  while (endCluster > bgnCluster) {
+    if (!fatPut(endCluster - 1, endCluster)) goto fail;
+    endCluster--;
+  }
+  if (*curCluster != 0) {
+    // connect chains
+    if (!fatPut(*curCluster, bgnCluster)) goto fail;
+  }
+  // return first cluster number to caller
+  *curCluster = bgnCluster;
+
+  // remember possible next free cluster
+  if (setStart) allocSearchStart_ = bgnCluster + 1;
+
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+bool SdVolume::cacheFlush() {
+  if (cacheDirty_) {
+    if (!sdCard_->writeBlock(cacheBlockNumber_, cacheBuffer_.data)) {
+      goto fail;
+    }
+    // mirror FAT tables
+    if (cacheMirrorBlock_) {
+      if (!sdCard_->writeBlock(cacheMirrorBlock_, cacheBuffer_.data)) {
+        goto fail;
+      }
+      cacheMirrorBlock_ = 0;
+    }
+    cacheDirty_ = 0;
+  }
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+bool SdVolume::cacheRawBlock(uint32_t blockNumber, bool dirty) {
+  if (cacheBlockNumber_ != blockNumber) {
+    if (!cacheFlush()) goto fail;
+    if (!sdCard_->readBlock(blockNumber, cacheBuffer_.data)) goto fail;
+    cacheBlockNumber_ = blockNumber;
+  }
+  if (dirty) cacheDirty_ = true;
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+// return the size in bytes of a cluster chain
+bool SdVolume::chainSize(uint32_t cluster, uint32_t* size) {
+  uint32_t s = 0;
+  do {
+    if (!fatGet(cluster, &cluster)) goto fail;
+    s += 512UL << clusterSizeShift_;
+  } while (!isEOC(cluster));
+  *size = s;
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+// Fetch a FAT entry
+bool SdVolume::fatGet(uint32_t cluster, uint32_t* value) {
+  uint32_t lba;
+  if (cluster > (clusterCount_ + 1)) goto fail;
+  if (FAT12_SUPPORT && fatType_ == 12) {
+    uint16_t index = cluster;
+    index += index >> 1;
+    lba = fatStartBlock_ + (index >> 9);
+    if (!cacheRawBlock(lba, CACHE_FOR_READ)) goto fail;
+    index &= 0X1FF;
+    uint16_t tmp = cacheBuffer_.data[index];
+    index++;
+    if (index == 512) {
+      if (!cacheRawBlock(lba + 1, CACHE_FOR_READ)) goto fail;
+      index = 0;
+    }
+    tmp |= cacheBuffer_.data[index] << 8;
+    *value = cluster & 1 ? tmp >> 4 : tmp & 0XFFF;
+    return true;
+  }
+  if (fatType_ == 16) {
+    lba = fatStartBlock_ + (cluster >> 8);
+  } else if (fatType_ == 32) {
+    lba = fatStartBlock_ + (cluster >> 7);
+  } else {
+    goto fail;
+  }
+  if (lba != cacheBlockNumber_) {
+    if (!cacheRawBlock(lba, CACHE_FOR_READ)) goto fail;
+  }
+  if (fatType_ == 16) {
+    *value = cacheBuffer_.fat16[cluster & 0XFF];
+  } else {
+    *value = cacheBuffer_.fat32[cluster & 0X7F] & FAT32MASK;
+  }
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+// Store a FAT entry
+bool SdVolume::fatPut(uint32_t cluster, uint32_t value) {
+  uint32_t lba;
+  // error if reserved cluster
+  if (cluster < 2) goto fail;
+
+  // error if not in FAT
+  if (cluster > (clusterCount_ + 1)) goto fail;
+
+  if (FAT12_SUPPORT && fatType_ == 12) {
+    uint16_t index = cluster;
+    index += index >> 1;
+    lba = fatStartBlock_ + (index >> 9);
+    if (!cacheRawBlock(lba, CACHE_FOR_WRITE)) goto fail;
+    // mirror second FAT
+    if (fatCount_ > 1) cacheMirrorBlock_ = lba + blocksPerFat_;
+    index &= 0X1FF;
+    uint8_t tmp = value;
+    if (cluster & 1) {
+      tmp = (cacheBuffer_.data[index] & 0XF) | tmp << 4;
+    }
+    cacheBuffer_.data[index] = tmp;
+    index++;
+    if (index == 512) {
+      lba++;
+      index = 0;
+      if (!cacheRawBlock(lba, CACHE_FOR_WRITE)) goto fail;
+      // mirror second FAT
+      if (fatCount_ > 1) cacheMirrorBlock_ = lba + blocksPerFat_;
+    }
+    tmp = value >> 4;
+    if (!(cluster & 1)) {
+      tmp = ((cacheBuffer_.data[index] & 0XF0)) | tmp >> 4;
+    }
+    cacheBuffer_.data[index] = tmp;
+    return true;
+  }
+  if (fatType_ == 16) {
+    lba = fatStartBlock_ + (cluster >> 8);
+  } else if (fatType_ == 32) {
+    lba = fatStartBlock_ + (cluster >> 7);
+  } else {
+    goto fail;
+  }
+  if (!cacheRawBlock(lba, CACHE_FOR_WRITE)) goto fail;
+  // store entry
+  if (fatType_ == 16) {
+    cacheBuffer_.fat16[cluster & 0XFF] = value;
+  } else {
+    cacheBuffer_.fat32[cluster & 0X7F] = value;
+  }
+  // mirror second FAT
+  if (fatCount_ > 1) cacheMirrorBlock_ = lba + blocksPerFat_;
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+// free a cluster chain
+bool SdVolume::freeChain(uint32_t cluster) {
+  uint32_t next;
+
+  // clear free cluster location
+  allocSearchStart_ = 2;
+
+  do {
+    if (!fatGet(cluster, &next)) goto fail;
+
+    // free cluster
+    if (!fatPut(cluster, 0)) goto fail;
+
+    cluster = next;
+  } while (!isEOC(cluster));
+
+  return true;
+
+ fail:
+  return false;
+}
+//------------------------------------------------------------------------------
+/** Volume free space in clusters.
+ *
+ * \return Count of free clusters for success or -1 if an error occurs.
+ */
+int32_t SdVolume::freeClusterCount() {
+  uint32_t free = 0;
+  uint16_t n;
+  uint32_t todo = clusterCount_ + 2;
+
+  if (fatType_ == 16) {
+    n = 256;
+  } else if (fatType_ == 32) {
+    n = 128;
+  } else {
+    // put FAT12 here
+    return -1;
+  }
+
+  for (uint32_t lba = fatStartBlock_; todo; todo -= n, lba++) {
+    if (!cacheRawBlock(lba, CACHE_FOR_READ)) return -1;
+    if (todo < n) n = todo;
+    if (fatType_ == 16) {
+      for (uint16_t i = 0; i < n; i++) {
+        if (cacheBuffer_.fat16[i] == 0) free++;
+      }
+    } else {
+      for (uint16_t i = 0; i < n; i++) {
+        if (cacheBuffer_.fat32[i] == 0) free++;
+      }
+    }
+  }
+  return free;
+}
+//------------------------------------------------------------------------------
+/** Initialize a FAT volume.
+ *
+ * \param[in] dev The SD card where the volume is located.
+ *
+ * \param[in] part The partition to be used.  Legal values for \a part are
+ * 1-4 to use the corresponding partition on a device formatted with
+ * a MBR, Master Boot Record, or zero if the device is formatted as
+ * a super floppy with the FAT boot sector in block zero.
+ *
+ * \return The value one, true, is returned for success and
+ * the value zero, false, is returned for failure.  Reasons for
+ * failure include not finding a valid partition, not finding a valid
+ * FAT file system in the specified partition or an I/O error.
+ */
+bool SdVolume::init(Sd2Card* dev, uint8_t part) {
+  uint32_t totalBlocks;
+  uint32_t volumeStartBlock = 0;
+  fat32_boot_t* fbs;
+
+  sdCard_ = dev;
+  fatType_ = 0;
+  allocSearchStart_ = 2;
+  cacheDirty_ = 0;  // cacheFlush() will write block if true
+  cacheMirrorBlock_ = 0;
+  cacheBlockNumber_ = 0XFFFFFFFF;
+
+  // if part == 0 assume super floppy with FAT boot sector in block zero
+  // if part > 0 assume mbr volume with partition table
+  if (part) {
+    if (part > 4)goto fail;
+    if (!cacheRawBlock(volumeStartBlock, CACHE_FOR_READ)) goto fail;
+    part_t* p = &cacheBuffer_.mbr.part[part-1];
+    if ((p->boot & 0X7F) !=0  ||
+      p->totalSectors < 100 ||
+      p->firstSector == 0) {
+      // not a valid partition
+      goto fail;
+    }
+    volumeStartBlock = p->firstSector;
+  }
+  if (!cacheRawBlock(volumeStartBlock, CACHE_FOR_READ)) goto fail;
+  fbs = &cacheBuffer_.fbs32;
+  if (fbs->bytesPerSector != 512 ||
+    fbs->fatCount == 0 ||
+    fbs->reservedSectorCount == 0 ||
+    fbs->sectorsPerCluster == 0) {
+       // not valid FAT volume
+      goto fail;
+  }
+  fatCount_ = fbs->fatCount;
+  blocksPerCluster_ = fbs->sectorsPerCluster;
+  // determine shift that is same as multiply by blocksPerCluster_
+  clusterSizeShift_ = 0;
+  while (blocksPerCluster_ != (1 << clusterSizeShift_)) {
+    // error if not power of 2
+    if (clusterSizeShift_++ > 7) goto fail;
+  }
+  blocksPerFat_ = fbs->sectorsPerFat16 ?
+                    fbs->sectorsPerFat16 : fbs->sectorsPerFat32;
+
+  fatStartBlock_ = volumeStartBlock + fbs->reservedSectorCount;
+
+  // count for FAT16 zero for FAT32
+  rootDirEntryCount_ = fbs->rootDirEntryCount;
+
+  // directory start for FAT16 dataStart for FAT32
+  rootDirStart_ = fatStartBlock_ + fbs->fatCount * blocksPerFat_;
+
+  // data start for FAT16 and FAT32
+  dataStartBlock_ = rootDirStart_ + ((32 * fbs->rootDirEntryCount + 511)/512);
+
+  // total blocks for FAT16 or FAT32
+  totalBlocks = fbs->totalSectors16 ?
+                           fbs->totalSectors16 : fbs->totalSectors32;
+  // total data blocks
+  clusterCount_ = totalBlocks - (dataStartBlock_ - volumeStartBlock);
+
+  // divide by cluster size to get cluster count
+  clusterCount_ >>= clusterSizeShift_;
+
+  // FAT type is determined by cluster count
+  if (clusterCount_ < 4085) {
+    fatType_ = 12;
+    if (!FAT12_SUPPORT) goto fail;
+  } else if (clusterCount_ < 65525) {
+    fatType_ = 16;
+  } else {
+    rootDirStart_ = fbs->fat32RootCluster;
+    fatType_ = 32;
+  }
+  return true;
+
+ fail:
+  return false;
+}
 #endif
