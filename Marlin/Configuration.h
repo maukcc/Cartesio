@@ -9,19 +9,19 @@
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
-#define REPRAPPRO_MENDEL
+//#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
 
 // Uncomment ONE of the next two lines - the one for your master controller electronics
-#define REPRAPPRO_MELZI
+//#define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
 
 // Uncomment ONE of the next two lines - the one for the series resistors on your controller
-#define SERIAL_R 4700
+//#define SERIAL_R 4700
 //#define SERIAL_R 10000
 
 // Uncomment the next line if your machine has more than one extruder
-#define REPRAPPRO_MULTIMATERIALS
+//#define REPRAPPRO_MULTIMATERIALS
 
 // -------------------------------------------------------------------------------
 

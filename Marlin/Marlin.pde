@@ -1373,15 +1373,20 @@ void process_commands()
     case 556: // Set temp
       talkToSlave("T0100");
       break;
-    case 557:  // Call stepper test    
+    case 557:  // Call stepper test 
+      slaveDrive(1);   
       talkToSlave("A");
+      slaveDrive(NO_DRIVE);  
       break;
     case 558: // Send interrupt
+      slaveDrive(1); 
+      delay(10);
       for(int ii=0; ii < 1000; ii++)
       {
         slaveStep(0, false);
         delay(1);
       }
+      slaveDrive(NO_DRIVE); 
       break;    
 #endif
     }
@@ -1390,7 +1395,7 @@ void process_commands()
   else if(code_seen('T')) 
   {
     tmp_extruder = code_value();
-    if(tmp_extruder >= EXTRUDERS) 
+    if(tmp_extruder < 0 || tmp_extruder >= EXTRUDERS) 
     {
       SERIAL_ECHO_START;
       SERIAL_ECHO(MSG_STANDBY_TEMP);
@@ -1401,58 +1406,63 @@ void process_commands()
     {
       if((tmp_extruder != active_extruder) || !extruder_selected)
       {
-      setTargetHotend(extruder_standby[active_extruder], active_extruder);
-      extruder_selected = true;
+         setTargetHotend(extruder_standby[active_extruder], active_extruder);
+         extruder_selected = true;
       
-      // Deal with offsets here:  record current pos as temp_position; 
-      // move to temp_position + tmp_extruder - active_extruder; 
-      // Set current pos to be temp_position
-      // TOTHINKABOUT: What about cumulative errors with a LOT of extruder changes?
+         // Deal with offsets here:  record current pos as temp_position; 
+         // move to temp_position + tmp_extruder - active_extruder; 
+         // Set current pos to be temp_position
+         // TOTHINKABOUT: What about cumulative errors with a LOT of extruder changes?
       
-      for(int8_t i=0; i < NUM_AXIS; i++) 
-      {
-        temp_position[i] = current_position[i];
-        destination[i] = current_position[i];
-      }
-      next_feedrate = feedrate;
-      x_off_d = extruder_x_off[tmp_extruder] - extruder_x_off[active_extruder];
-      y_off_d = extruder_y_off[tmp_extruder] - extruder_y_off[active_extruder];
-      z_off_d = extruder_z_off[tmp_extruder] - extruder_z_off[active_extruder];      
+         for(int8_t i=0; i < NUM_AXIS; i++) 
+         {
+           temp_position[i] = current_position[i];
+           destination[i] = current_position[i];
+         }
+         next_feedrate = feedrate;
+         x_off_d = extruder_x_off[tmp_extruder] - extruder_x_off[active_extruder];
+         y_off_d = extruder_y_off[tmp_extruder] - extruder_y_off[active_extruder];
+         z_off_d = extruder_z_off[tmp_extruder] - extruder_z_off[active_extruder];      
       
-      if(z_off_d > 0)
-      {
-        destination[Z_AXIS] += z_off_d;
-        feedrate = fast_home_feedrate[Z_AXIS];
-        prepare_move();
-        destination[X_AXIS] = temp_position[X_AXIS] + x_off_d;
-        destination[Y_AXIS] = temp_position[Y_AXIS] + y_off_d;
-        feedrate = fast_home_feedrate[X_AXIS];        
-        prepare_move();
-      } else
-      {
-        destination[X_AXIS] += x_off_d;
-        destination[Y_AXIS] += y_off_d;
-        feedrate = fast_home_feedrate[X_AXIS];
-        prepare_move();
-        destination[Z_AXIS] = temp_position[Z_AXIS] + z_off_d;
-        feedrate = fast_home_feedrate[Z_AXIS];
-        prepare_move();      
-      }
+         if(z_off_d > 0)
+         {
+           destination[Z_AXIS] += z_off_d;
+           feedrate = fast_home_feedrate[Z_AXIS];
+           prepare_move();
+           destination[X_AXIS] = temp_position[X_AXIS] + x_off_d;
+           destination[Y_AXIS] = temp_position[Y_AXIS] + y_off_d;
+           feedrate = fast_home_feedrate[X_AXIS];        
+           prepare_move();
+         } else
+         {
+           destination[X_AXIS] += x_off_d;
+           destination[Y_AXIS] += y_off_d;
+           feedrate = fast_home_feedrate[X_AXIS];
+           prepare_move();
+           destination[Z_AXIS] = temp_position[Z_AXIS] + z_off_d;
+           feedrate = fast_home_feedrate[Z_AXIS];
+           prepare_move();      
+         }
       
-      for(int8_t i=0; i < NUM_AXIS; i++) 
-        current_position[i] = temp_position[i];
-      feedrate = next_feedrate;
-      active_extruder = tmp_extruder;
+         for(int8_t i=0; i < NUM_AXIS; i++) 
+           current_position[i] = temp_position[i];
+         feedrate = next_feedrate;
+         active_extruder = tmp_extruder;
+#ifdef REPRAPPRO_MULTIMATERIALS
+         if(active_extruder > 0)
+            slaveDrive(active_extruder);
+         else
+           slaveDrive(NO_DRIVE); // Sending a non-existent drive number will turn the current one off
+#endif      
+         SERIAL_ECHO_START;
+         SERIAL_ECHO(MSG_ACTIVE_EXTRUDER);
+         SERIAL_PROTOCOLLN((int)active_extruder);
       
-      SERIAL_ECHO_START;
-      SERIAL_ECHO(MSG_ACTIVE_EXTRUDER);
-      SERIAL_PROTOCOLLN((int)active_extruder);
-      
-      setTargetHotend(extruder_temperature[active_extruder], active_extruder);
+         setTargetHotend(extruder_temperature[active_extruder], active_extruder);
       
       
-      codenum = millis(); 
-      //wait_for_temp(active_extruder, codenum);
+         codenum = millis(); 
+         //wait_for_temp(active_extruder, codenum);
       }
     }
   }

@@ -13,20 +13,20 @@
 char* strplus(char* a, char* b);
 void error(char* s);
 void stop();
-void setTemperature(int8_t e, int t);
-int getRawTemperature(int8_t e);
-float getTemperature(int8_t e);
+void setTemperature(int8_t heater, int t);
+int getRawTemperature(int8_t heater);
+float getTemperature(int8_t heater);
 int getRawTargetTemperature(float t);
 void heatControl();
 void tempCheck();
-void step(int8_t e);
+void step(int8_t drive);
 void test();
 void command();
 void incomming();
 void configureInterrupt();
-void setDirection(int8_t e, bool d);
-void enable(int8_t e);
-void disable(int8_t e);
+void setDirection(int8_t drive, bool forward);
+void enable(int8_t drive);
+void disable(int8_t drive);
 
 #include "Slave_Configuration.h"
 
@@ -42,9 +42,7 @@ int8_t dirs[DRIVES] = DIRS;
 int8_t enables[DRIVES] = ENABLES;
 int8_t therms[HOT_ENDS] = THERMS;
 int8_t heaters[HOT_ENDS] = HEATERS;
-volatile int8_t currentExtruder = 0;
-
-// Drive arrays
+volatile int8_t currentDrive = NO_DRIVE;
 
 
 // Heater arrays
@@ -60,6 +58,17 @@ float Kd[HOT_ENDS];
 float temp_iState[HOT_ENDS];
 float temp_dState[HOT_ENDS];
 float dt = 0.001*(float)TEMP_INTERVAL;
+
+/* *******************************************************************
+
+  The master clock interrupt
+*/
+
+ISR ( PCINT2_vect ) 
+{
+  stepExtruder(currentDrive);
+}
+
 
 
 /* *******************************************************************
@@ -81,8 +90,7 @@ void setup()
     disable(i);
     setDirection(i, FORWARDS);
   }
-  currentExtruder = 0;
-  enable(currentExtruder);
+  currentDrive = NO_DRIVE;
   
   for(i = 0; i < HOT_ENDS; i++)
   {
@@ -97,7 +105,12 @@ void setup()
     temp_iState_max_min[i] = PID_MAX_MIN;
     setTemperature(i, 0);
   }
-  configureInterrupt();
+  PCICR |= (1<<PCIE2);
+  PCMSK2 |= (1<<PCINT17);
+  MCUCR = (1<<ISC01) | (1<<ISC00); // Rising and falling edge trigger
+  pinMode(INTERRUPT_PIN, INPUT);
+  digitalWrite(INTERRUPT_PIN, HIGH); // Set pullup
+  interrupts();
   time = millis() + TEMP_INTERVAL;
 }
 
@@ -115,7 +128,7 @@ void stop()
 {
   int8_t i;
   for(i = 0; i < DRIVES; i++)
-    digitalWrite(enables[i], DISABLE);
+    disable(i);
   for(i = 0; i < HOT_ENDS; i++)
     setTemperature(i, 0); 
 }
@@ -126,62 +139,75 @@ void stop()
 */
 
 
-inline void setTemperature(int8_t e, int t)
+inline void setTemperature(int8_t heater, int t)
 {
-  setTemps[e]=t;
+  if(heater < 0 || heater >= HOT_ENDS)
+    return;
+  setTemps[heater]=t;
 }
 
 
-inline int getRawTemperature(int8_t e)
+inline int getRawTemperature(int8_t heater)
 {
-  return analogRead(therms[e]);
+  if(heater < 0 || heater >= HOT_ENDS)
+    return 0;
+  return analogRead(therms[heater]);
 }
 
 
-inline float getTemperature(int8_t e)
+inline float getTemperature(int8_t heater)
 {
-  float raw = (float)getRawTemperature(e);
+  if(heater < 0 || heater >= HOT_ENDS)
+    return ABS_ZERO;
+  float raw = (float)getRawTemperature(heater);
   return ABS_ZERO + TH_BETA/log( (raw*TH_RS/(AD_RANGE - raw)) /TH_R_INF );
 }
 
-inline float getTargetTemperature(int8_t e)
+inline float getTargetTemperature(int8_t heater)
 {
-  return setTemps[e];
+  if(heater < 0 || heater >= HOT_ENDS)
+    return ABS_ZERO;
+  return setTemps[heater];
 }
 
 
-inline float pid(int8_t e) 
+inline float pid(int8_t heater) 
 {
+   if(heater < 0 || heater >= HOT_ENDS)
+     return 0;
+  
    float error, target, current;
    
-   target = getTargetTemperature(e);
-   current = getTemperature(e);   
+   target = getTargetTemperature(heater);
+   current = getTemperature(heater);   
 #ifdef DEBUG
-     if(e == currentExtruder)
-     {
-       MYSERIAL1.println(current);
-     }
+       MYSERIAL1.print(current);
+       MYSERIAL1.print(' ');
 #endif   
    error = target - current;
 
-   float result = Kp[e]*error + Ki[e]*temp_iState[e] + Kd[e]
-	*(error - temp_dState[e])/dt;
+   float result = Kp[heater]*error + Ki[heater]*temp_iState[heater] + Kd[heater]
+	*(error - temp_dState[heater])/dt;
 
-   temp_iState[e] += error*dt;
-
-   if (temp_iState[e] < -temp_iState_max_min[e]) temp_iState[e] = -temp_iState_max_min[e];
-   if (temp_iState[e] > temp_iState_max_min[e]) temp_iState[e] = temp_iState_max_min[e];
+   temp_iState[heater] += error*dt;
+   temp_dState[heater] = error;
+   
+   if (temp_iState[heater] < -temp_iState_max_min[heater]) temp_iState[heater] = -temp_iState_max_min[heater];
+   if (temp_iState[heater] > temp_iState_max_min[heater]) temp_iState[heater] = temp_iState_max_min[heater];
    if (result < 0) result = 0;
    if (result > 1) result = 1;
-   temp_dState[e] = error;
+   
    return result;
 }
 
 
 void heatControl()
 { 
-  for(int8_t e = 0; e < HOT_ENDS; e++)
-     analogWrite(heaters[e], (int)(pid(e)*PID_MAX));
+  for(int8_t heater = 0; heater < HOT_ENDS; heater++)
+     analogWrite(heaters[heater], (int)(pid(heater)*PID_MAX));
+#ifdef DEBUG
+  MYSERIAL1.println();
+#endif      
 }
 
 inline void tempCheck()
@@ -197,25 +223,33 @@ inline void tempCheck()
    Stepper motors and DDA
 */
 
-inline void stepExtruder(int8_t e)
+inline void stepExtruder(int8_t drive)
 {
-  digitalWrite(steps[e],1);
-  digitalWrite(steps[e],0);
+  if(drive < 0 || drive >= DRIVES)
+    return;
+  digitalWrite(steps[drive],1);
+  digitalWrite(steps[drive],0);
 }
 
-inline void setDirection(int8_t e, bool d)
+inline void setDirection(int8_t drive, bool dir)
 {
-  digitalWrite(dirs[e], d);
+  if(drive < 0 || drive >= DRIVES)
+    return;
+  digitalWrite(dirs[drive], dir);
 }
 
-inline void enable(int8_t e)
+inline void enable(int8_t drive)
 {
-  digitalWrite(enables[e], ENABLE);
+  if(drive < 0 || drive >= DRIVES)
+    return;
+  digitalWrite(enables[drive], ENABLE);
 }
 
-inline void disable(int8_t e)
+inline void disable(int8_t drive)
 {
-  digitalWrite(enables[e], DISABLE);
+ if(drive < 0 || drive >= DRIVES)
+   return;
+ digitalWrite(enables[drive], DISABLE);
 }
 
 /* *********************************************************************
@@ -223,29 +257,31 @@ inline void disable(int8_t e)
    The main loop and command interpreter
 */
 
-void test(int8_t e)
+void test()
 {
-#ifdef DEBUG  
-  for(int i = 0; i < 1000; i++)
-  {
-    stepExtruder(currentExtruder);
-    delay(1);
-  }
-  
-  analogWrite(heaters[e], (int)(TEST_POWER*PID_MAX));
+#ifdef DEBUG_STEP 
+    for(int i = 0; i < 1000; i++)
+    {
+      stepExtruder(currentDrive);
+      delay(1);
+    }
+#endif
+#ifdef DEBUG_HEAT
+  analogWrite(heaters[heater], (int)(TEST_POWER*PID_MAX));
   float t = 0;
   while(t < TEST_DURATION)
   {
-    MYSERIAL1.println(getTemperature(e));
+    MYSERIAL1.println(getTemperature(heater));
     delay((int)(1000*TEST_INTERVAL));
     t += TEST_INTERVAL;
   }
-  analogWrite(heaters[e], 0);
+  analogWrite(heaters[heater], 0);
 #endif
 }
 
 void command()
 {
+  int8_t drive;
   switch(buf[0])
   {
     case GET_T: // Get temperature of an extruder
@@ -260,10 +296,13 @@ void command()
       setTemperature(buf[1]-'0', atoi(&buf[2]));
       break;
       
-    case EXTR:  // Set the current extruder
-      disable(currentExtruder);
-      currentExtruder = buf[1]-'0';
-      enable(currentExtruder);
+    case DRIVE:  // Set the current drive
+      drive = buf[1]-'0';
+      if(drive == currentDrive)
+        return;
+      disable(currentDrive);
+      currentDrive = drive;
+      enable(currentDrive);
       break;
       
     case DIR_F:  // Set an extruder's direction forwards
@@ -301,7 +340,7 @@ void command()
       break;
       
     case TEST:
-      test(buf[1]-'0');
+      test();
       break;
       
     default:
@@ -338,22 +377,4 @@ void loop()
 } 
 
 
-/* *******************************************************************
 
-  The master clock interrupt
-*/
-
-ISR ( PCINT2_vect ) 
-{
-  stepExtruder(currentExtruder);
-}
-
-void configureInterrupt()
-{
- PCICR |= (1<<PCIE2);
- PCMSK2 |= (1<<PCINT17);
- MCUCR = (1<<ISC01) | (1<<ISC00); // Rising and falling edge trigger
- pinMode(INTERRUPT_PIN, INPUT);
- digitalWrite(INTERRUPT_PIN, HIGH); // Set pullup
- interrupts();
-}

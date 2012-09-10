@@ -20,21 +20,21 @@ extern bool setDir[];
 extern long timeout;
 
 
-float slaveDegHotend(uint8_t extruder);
-void slaveSetTargetHotend(const float &celsius, uint8_t extruder);
-float slaveDegTargetHotend(uint8_t extruder);
-bool slaveIsHeatingHotend(uint8_t extruder);
-bool slaveIsCoolingHotend(uint8_t extruder);
-void slaveStep(int8_t extruder, int8_t v);
-void slaveDir(int8_t extruder, bool forward);
+float slaveDegHotend(uint8_t heater);
+void slaveSetTargetHotend(const float &celsius, uint8_t heater);
+float slaveDegTargetHotend(uint8_t heater);
+bool slaveIsHeatingHotend(uint8_t heater);
+bool slaveIsCoolingHotend(uint8_t heater);
+void slaveStep(int8_t drive, int8_t v);
+void slaveDir(int8_t drive, bool forward);
 void talkToSlave(char s[]);
 char* listenToSlave();
 void setup_slave();
 
-FORCE_INLINE float getFloatFromSlave(uint8_t extruder, char command)
+FORCE_INLINE float getFloatFromSlave(uint8_t device, char command)
 {
 	slaveXmitBuffer[0] = command;
-	slaveXmitBuffer[1] = '0' + extruder - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+	slaveXmitBuffer[1] = '0' + device - 1; // Our extruder 0 is the Master's extruder; slave's  device 0 is our e1
 	slaveXmitBuffer[2] = 0;
 	talkToSlave(slaveXmitBuffer);
 	listenToSlave();
@@ -43,63 +43,63 @@ FORCE_INLINE float getFloatFromSlave(uint8_t extruder, char command)
 }
 
 
-FORCE_INLINE void slaveSetTargetHotend(const float &celsius, uint8_t extruder) 
+FORCE_INLINE void slaveSetTargetHotend(const float &celsius, uint8_t heater) 
 {
 	slaveXmitBuffer[0] = SET_T;
-	slaveXmitBuffer[1] = '0' + extruder - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+	slaveXmitBuffer[1] = '0' + heater - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
 	itoa((int)celsius, &slaveXmitBuffer[2], 10); // Let's not worry about decimal places for the moment...
 	talkToSlave(slaveXmitBuffer);	
 }
 
-FORCE_INLINE float slaveDegHotend(uint8_t extruder) 
+FORCE_INLINE float slaveDegHotend(uint8_t heater) 
 {
-	return getFloatFromSlave(extruder, GET_T);
+	return getFloatFromSlave(heater, GET_T);
 }
 
-FORCE_INLINE float slaveDegTargetHotend(uint8_t extruder) 
+FORCE_INLINE float slaveDegTargetHotend(uint8_t heater) 
 { 
- 	return getFloatFromSlave(extruder, GET_TT);
+ 	return getFloatFromSlave(heater, GET_TT);
 }
 
-FORCE_INLINE bool slaveIsHeatingHotend(uint8_t extruder) 
+FORCE_INLINE bool slaveIsHeatingHotend(uint8_t heater) 
 { 
-	return slaveDegHotend(extruder) < slaveDegTargetHotend(extruder); 
+	return slaveDegHotend(heater) < slaveDegTargetHotend(heater); 
 }
 
-FORCE_INLINE bool  slaveIsCoolingHotend(uint8_t extruder) 
+FORCE_INLINE bool  slaveIsCoolingHotend(uint8_t heater) 
 { 
-	return !slaveIsHeatingHotend(extruder) ; 
+	return !slaveIsHeatingHotend(heater) ; 
 }
 
 
-// NB this assumes the extruder has already been selected
-FORCE_INLINE void slaveStep(int8_t extruder, int8_t v)
+// NB this assumes the drive has already been selected
+FORCE_INLINE void slaveStep(int8_t drive, int8_t v)
 {
 	if(v) return; // Slave clocks on every change
 	digitalWrite(SLAVE_CLOCK, !digitalRead(SLAVE_CLOCK));
 }
 
-FORCE_INLINE void slaveDir(int8_t extruder, bool forward)
+FORCE_INLINE void slaveDir(int8_t drive, bool forward)
 {
 	if(forward)
         {
-            if(setDir[extruder]) return;  // For reasons that defy rational explanash, Marlin sets direction every step...
+            if(setDir[drive]) return;  // For reasons that defy rational explanash, Marlin sets direction every step...
 	    slaveXmitBuffer[0] = DIR_F;
 	} else
         {
-            if(!setDir[extruder]) return;
+            if(!setDir[drive]) return;
 	    slaveXmitBuffer[0] = DIR_B;
         }
-	slaveXmitBuffer[1] = '0' + extruder - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+	slaveXmitBuffer[1] = '0' + drive - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
 	slaveXmitBuffer[2] = 0;
 	talkToSlave(slaveXmitBuffer);
-        setDir[extruder] = forward;
+        setDir[drive] = forward;
 }
 
-FORCE_INLINE void slaveExtruder(int8_t extruder)
+FORCE_INLINE void slaveDrive(int8_t drive)
 {
-	slaveXmitBuffer[0] = EXTR;
-	slaveXmitBuffer[1] = '0' + extruder - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+	slaveXmitBuffer[0] = DRIVE;
+	slaveXmitBuffer[1] = '0' + drive - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
 	slaveXmitBuffer[2] = 0;
 	talkToSlave(slaveXmitBuffer);
 }

@@ -15,6 +15,8 @@
 #include "slaveCommands.h"
 
 //#define DEBUG
+#define DEBUG_STEP
+//#define DEBUG_HEAT
 
 // Various...
 
@@ -46,8 +48,12 @@
  
 
 #define THERMS { 7, 6 } // Analogue
-#define HEATERS { 13, 14 }
-#define INTERRUPT_PIN 17
+#define HEATERS { 13, 12 }
+
+// Incoming master-clock interrupt on D17 (chip pin 23, PCINT17)
+// Change state on this to step a drive
+
+#define INTERRUPT_PIN 17  
 
 //===========================================================================
 //=============================Thermal Settings  ============================
@@ -71,6 +77,8 @@
 
 // This DOES assume that all extruders use the same thermistor type.
 
+// To set these values experimentally, see: https://github.com/reprappro/HotEndModel
+
 #define ABS_ZERO -273.15
 //#define AD_RANGE 16383.0
 #define AD_RANGE 1023.0
@@ -92,8 +100,6 @@
 #define TEST_POWER 0.4
 #define TEST_INTERVAL 0.4
 #define TEST_DURATION 240
-
-// Incoming master-clock interrupt on D17 (chip pin 23, PCINT17)
 
 #endif
 
