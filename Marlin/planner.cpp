@@ -468,8 +468,8 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   while(block_buffer_tail == next_buffer_head) { 
     manage_heater(); 
     manage_inactivity(1); 
-    lcd_status();
-    led_status();
+    LCD_STATUS;
+    LED_STATUS;
   }
   
   // The target position of the tool in absolute steps
@@ -746,7 +746,7 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
     }
     else {
       long acc_dist = estimate_acceleration_distance(0, block->nominal_rate, block->acceleration_st);
-      float advance = (STEPS_PER_CUBIC_MM_E * EXTRUDER_ADVANCE_K) * 
+      float advance = (STEPS_PER_CUBIC_MM_E * advance_k) * 
         (current_speed[E_AXIS] * current_speed[E_AXIS] * EXTRUTION_AREA * EXTRUTION_AREA)*256;
       block->advance = advance;
       if(acc_dist == 0) {

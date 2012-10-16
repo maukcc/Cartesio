@@ -35,11 +35,15 @@
 # $Id$
 
 #For "old" Arduino Mega
-MCU = atmega1280
+#MCU = atmega1280
 #For Arduino Mega2560
 #MCU = atmega2560
 #For Sanguinololu
 #MCU = atmega644p 
+MCU = atmega1284p
+#For Printrboard
+#MCU = at90usb1286 
+
 
 #Arduino install directory
 INSTALL_DIR = ../../arduino-0022/
@@ -65,7 +69,8 @@ SRC =  $(ARDUINO)/pins_arduino.c $(ARDUINO)/wiring.c \
 	$(ARDUINO)/wiring_pulse.c \
 	$(ARDUINO)/wiring_shift.c $(ARDUINO)/WInterrupts.c
 CXXSRC = $(ARDUINO)/WMath.cpp $(ARDUINO)/WString.cpp\
-	$(ARDUINO)/Print.cpp applet/Marlin.cpp MarlinSerial.cpp Sd2Card.cpp SdBaseFile.cpp SdFatUtil.cpp SdFile.cpp SdVolume.cpp motion_control.cpp planner.cpp stepper.cpp temperature.cpp cardreader.cpp
+	$(ARDUINO)/Print.cpp applet/Marlin.cpp MarlinSerial.cpp Sd2Card.cpp SdBaseFile.cpp SdFatUtil.cpp SdFile.cpp SdVolume.cpp motion_control.cpp planner.cpp stepper.cpp temperature.cpp cardreader.cpp MatrixMath.cpp FPUTransform.cpp z_probe.cpp
+	
 FORMAT = ihex
 
 

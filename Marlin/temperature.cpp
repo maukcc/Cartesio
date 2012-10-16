@@ -42,6 +42,16 @@ int target_raw_bed = 0;
 int current_raw[EXTRUDERS_T] = { 0 };
 int current_raw_bed = 0;
 
+int b_beta = BED_BETA;
+int b_resistor = BED_RS;
+long b_thermistor = BED_NTC;
+float b_inf = BED_R_INF;
+
+int n_beta = E_BETA;
+int n_resistor = E_RS;
+long n_thermistor = E_NTC;
+float n_inf = E_R_INF;
+
 #ifdef PIDTEMP
   // used external
   float pid_setpoint[EXTRUDERS_T] = { 0.0 };
@@ -188,7 +198,7 @@ void PID_autotune(float temp)
       SERIAL_PROTOCOLLNPGM("PID Autotune finished ! Place the Kp, Ki and Kd constants in the configuration.h");
       return;
     }
-    lcd_status();
+    LCD_STATUS;
   }
 }
 
@@ -319,7 +329,7 @@ float analog2temp_remote(uint8_t e)
 int temp2analog_remote(int celsius, uint8_t e)
 {
 	// What do we do about this, then?
-	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF);
+	return temp2analogi(celsius, n_beta, n_resistor, n_inf);
 }
 #endif
 
@@ -329,23 +339,23 @@ int temp2analog(int celsius, uint8_t e)
 #ifdef REPRAPPRO_MULTIMATERIALS
 	if(e > 0) return temp2analog_remote(celsius, e);
 #endif
-	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF); 
+	return temp2analogi(celsius, n_beta, n_resistor, n_inf); 
 }
 float analog2temp(int raw, uint8_t e) 
 {
 #ifdef REPRAPPRO_MULTIMATERIALS
 	if(e > 0) return analog2temp_remote(e);
 #endif
-	return analog2tempi(raw, E_BETA, E_RS, E_R_INF); 
+	return analog2tempi(raw, n_beta, n_resistor, n_inf); 
 }
 
 int temp2analogBed(int celsius) 
 {
-	return temp2analogi(celsius, BED_BETA, BED_RS, BED_R_INF); 
+	return temp2analogi(celsius, b_beta, b_resistor, b_inf); 
 }
 float analog2tempBed(int raw) 
 { 
-	return analog2tempi(raw, BED_BETA, BED_RS, BED_R_INF); 
+	return analog2tempi(raw, b_beta, b_resistor, b_inf); 
 }
 
 
@@ -649,10 +659,10 @@ ISR(TIMER0_COMPB_vect)
       temp_state = 0;
       temp_count++;
       break;
-    default:
+//    default:
 //      SERIAL_ERROR_START;
 //      SERIAL_ERRORLNPGM("Temp measurement error!");
-     break;
+//      break;
   }
     
   if(temp_count >= 16) // 8 ms * 16 = 128ms.

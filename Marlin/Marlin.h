@@ -4,12 +4,6 @@
 #ifndef MARLIN_H
 #define MARLIN_H
 
-#include "Configuration.h"
-
-#ifndef REPRAPPRO_MULTIMATERIALS
-#define  HardwareSerial_h // trick to disable the standard HWserial
-#endif
-
 #define  FORCE_INLINE __attribute__((always_inline)) inline
 
 #include <math.h>
@@ -27,6 +21,11 @@
 
 #include "fastio.h"
 
+#include "Configuration.h"
+
+#ifndef REPRAPPRO_MULTIMATERIALS
+#define  HardwareSerial_h // trick to disable the standard HWserial
+#endif
 #include "pins.h"
 
 #if ARDUINO >= 100 
@@ -201,6 +200,10 @@ extern volatile int feedmultiply;
 extern int saved_feedmultiply;
 extern float current_position[NUM_AXIS] ;
 extern float add_homeing[3];
+extern float max_length[3];
+#ifdef ADVANCE
+extern float advance_k;
+#endif
 extern unsigned char FanSpeed;
 
 extern float destination[NUM_AXIS];

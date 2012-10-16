@@ -133,7 +133,7 @@ class MarlinSerial //: public Stream
     void print(unsigned int, int = DEC);
     void print(long, int = DEC);
     void print(unsigned long, int = DEC);
-    void print(double, int = 2);
+    void print(double, int = 3);
 
     void println(const String &s);
     void println(const char[]);

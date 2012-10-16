@@ -49,6 +49,15 @@ extern int heatingtarget_raw[EXTRUDERS_T];
 extern int current_raw[EXTRUDERS_T];
 extern int target_raw_bed;
 extern int current_raw_bed;
+extern int b_beta;
+extern int b_resistor;
+extern long b_thermistor;
+extern float b_inf;
+
+extern int n_beta;
+extern int n_resistor;
+extern long n_thermistor;
+extern float n_inf;
 
 extern float Kp,Ki,Kd,Kc;
 extern int Ki_Max;

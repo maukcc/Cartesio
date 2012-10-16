@@ -118,12 +118,14 @@
 // M204 - Set default acceleration: S normal moves T filament only moves (M204 S3000 T7000) im mm/sec^2  also sets minimum segment time in ms (B20000) to prevent buffer underruns and M20 minimum feedrate
 // M205 -  advanced settings:  minimum travel speed S=while printing T=travel only,  B=minimum segment time X= maximum xy jerk, Z=maximum Z jerk, E=maximum E jerk
 // M206 - set additional homeing offset
+// M208 - set axis max length
 // M220 S<factor in percent>- set speed factor override percentage
 // M221 S<factor in percent>- set extrude factor override percentage
 // M240 - Trigger a camera to take a photograph
-// M301 - Set PID parameters P I and D
-// M302 - Allow cold extrudes
+// M301 - Set PID parameters P I D and W
+// M302 - S1 Allow cold extrudes, S0 cold extrues not allowed (default)
 // M303 - PID relay autotune S<temperature> sets the target temperature. (default target temperature = 150C)
+// M304 - Set thermistor parameters
 // M400 - Finish all moves
 // M500 - stores paramters in EEPROM
 // M501 - reads parameters from EEPROM (if you need reset them after you changed them temporarily).  
@@ -160,6 +162,10 @@ volatile bool feedmultiplychanged=false;
 volatile int extrudemultiply=100; //100->1 200->2
 float current_position[NUM_AXIS] = { 0.0, 0.0, 0.0, 0.0 };
 float add_homeing[3]={0,0,0};
+float max_length[] = AXES_MAX_LENGTHS;
+#ifdef ADVANCE
+float advance_k = EXTRUDER_ADVANCE_K;
+#endif
 uint8_t active_extruder = 0;
 float extruder_x_off[EXTRUDERS];
 float extruder_y_off[EXTRUDERS];
@@ -401,8 +407,8 @@ void loop()
   manage_heater();
   manage_inactivity(1);
   checkHitEndstops();
-  lcd_status();
-  led_status();
+  LCD_STATUS;
+  LED_STATUS;
 }
 
 void get_command() 
@@ -592,7 +598,7 @@ bool code_seen(char code)
     { \
     current_position[LETTER##_AXIS] = 0; \
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]); \
-    destination[LETTER##_AXIS] = 1.1 * LETTER##_MAX_LENGTH * LETTER##_HOME_DIR; \
+    destination[LETTER##_AXIS] = 1.1 * max_length[LETTER##_AXIS] * LETTER##_HOME_DIR; \
     feedrate = fast_home_feedrate[LETTER##_AXIS]; \
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder); \
     st_synchronize();\
@@ -608,7 +614,7 @@ bool code_seen(char code)
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder); \
     st_synchronize();\
     \
-    current_position[LETTER##_AXIS] = (LETTER##_HOME_DIR == -1) ? LETTER##_HOME_POS : LETTER##_MAX_LENGTH;\
+    current_position[LETTER##_AXIS] = LETTER##_HOME_POS;\
     destination[LETTER##_AXIS] = current_position[LETTER##_AXIS];\
     feedrate = 0.0;\
     endstops_hit_on_purpose();\
@@ -745,8 +751,7 @@ void process_commands()
         destination[i] = current_position[i];
       }
       feedrate = 0.0;
-      home_all_axis = !((code_seen(axis_codes[X_AXIS])) || (code_seen(axis_codes[Y_AXIS])) || (code_seen(axis_codes[Z_AXIS])));
-
+      home_all_axis = !((code_seen(axis_codes[0])) || (code_seen(axis_codes[1])) || (code_seen(axis_codes[2])));
       
       if((home_all_axis) || (code_seen(axis_codes[X_AXIS]))) 
       {
@@ -1059,7 +1064,7 @@ void process_commands()
           }
           manage_heater();
           manage_inactivity(1);
-          lcd_status();
+          LCD_STATUS;
         }
         LCD_MESSAGEPGM(MSG_BED_DONE);
         previous_millis_cmd = millis();
@@ -1189,7 +1194,6 @@ void process_commands()
       #endif
       SERIAL_PROTOCOLLN("");
       break;
-      //TODO: update for all axis, use for loop
     case 201: // M201
       for(int8_t i=0; i < NUM_AXIS; i++) 
       {
@@ -1226,12 +1230,26 @@ void process_commands()
       if(code_seen('X')) max_xy_jerk = code_value() ;
       if(code_seen('Z')) max_z_jerk = code_value() ;
       if(code_seen('E')) max_e_jerk = code_value() ;
+      #ifdef ADVANCE
+      if(code_seen('K')) advance_k = code_value() ;
+      #endif
     }
     break;
     case 206: // M206 additional homeing offset
       for(int8_t i=0; i < 3; i++) 
       {
         if(code_seen(axis_codes[i])) add_homeing[i] = code_value();
+      }
+      break;
+    case 208: // M208 set axis max length
+      for(int8_t i=0; i < 3; i++) 
+      {
+        if(code_seen(axis_codes[i])) {
+          max_length[i] = code_value();
+          SERIAL_PROTOCOL(axis_codes[i]);
+          SERIAL_PROTOCOL(" Axis max length: ");
+          SERIAL_PROTOCOL(max_length[i]);
+        }
       }
       break;
     case 220: // M220 S<factor in percent>- set speed factor override percentage
@@ -1301,7 +1319,12 @@ void process_commands()
       
     case 302: // allow cold extrudes
     {
-      allow_cold_extrudes(true);
+      if (code_seen('S'))
+      {
+      	allow_cold_extrudes(code_value());
+      }else{
+      	allow_cold_extrudes(true);
+      }
     }
     break;
     case 303: // M303 PID autotune
@@ -1309,6 +1332,44 @@ void process_commands()
       float temp = 150.0;
       if (code_seen('S')) temp=code_value();
       PID_autotune(temp);
+    }
+    break;
+    case 304: // Set thermistor parameters
+    {
+      // M304 H0 B3960 R4700
+      // M304 H1 Bb Rr
+      if (code_seen('H'))
+      {
+      	if(!code_value()){
+      	  //set BED thermistor
+      	  if(code_seen('B')) b_beta = code_value();
+      	  if(code_seen('R')) b_resistor = code_value();
+      	  if(code_seen('T')) b_thermistor = code_value();
+      	  b_inf = ( b_thermistor*exp(-b_beta/298.15) );
+		  SERIAL_PROTOCOL(MSG_OK);
+		  SERIAL_PROTOCOL(" M304 H0 B");
+		  SERIAL_PROTOCOL(b_beta);
+		  SERIAL_PROTOCOL(" R");
+		  SERIAL_PROTOCOL(b_resistor);
+		  SERIAL_PROTOCOL(" T");
+		  SERIAL_PROTOCOL(b_thermistor);
+		  SERIAL_PROTOCOLLN("");
+	    }else{
+	      //set active Nozzle thermistor
+      	  if(code_seen('B')) n_beta = code_value();
+      	  if(code_seen('R')) n_resistor = code_value();
+      	  if(code_seen('T')) n_thermistor = code_value();
+      	  n_inf = ( n_thermistor*exp(-n_beta/298.15) );
+		  SERIAL_PROTOCOL(MSG_OK);
+		  SERIAL_PROTOCOL(" M304 H1 B");
+		  SERIAL_PROTOCOL(n_beta);
+		  SERIAL_PROTOCOL(" R");
+		  SERIAL_PROTOCOL(n_resistor);
+		  SERIAL_PROTOCOL(" T");
+		  SERIAL_PROTOCOL(n_thermistor);
+		  SERIAL_PROTOCOLLN("");
+    	}
+      }
     }
     break;
     case 400: // M400 finish all moves
@@ -1531,9 +1592,9 @@ void prepare_move()
   }
 
   if (max_software_endstops) {
-    if (modified_destination[X_AXIS] > X_MAX_LENGTH) modified_destination[X_AXIS] = X_MAX_LENGTH;
-    if (modified_destination[Y_AXIS] > Y_MAX_LENGTH) modified_destination[Y_AXIS] = Y_MAX_LENGTH;
-    if (modified_destination[Z_AXIS] > Z_MAX_LENGTH) modified_destination[Z_AXIS] = Z_MAX_LENGTH;
+    if (modified_destination[X_AXIS] > max_length[X_AXIS]) modified_destination[X_AXIS] = max_length[X_AXIS];
+    if (modified_destination[Y_AXIS] > max_length[Y_AXIS]) modified_destination[Y_AXIS] = max_length[Y_AXIS];
+    if (modified_destination[Z_AXIS] > max_length[Z_AXIS]) modified_destination[Z_AXIS] = max_length[Z_AXIS];
   }
   previous_millis_cmd = millis();  
   plan_buffer_line(modified_destination[X_AXIS], modified_destination[Y_AXIS], modified_destination[Z_AXIS], destination[E_AXIS], feedrate*feedmultiply/60/100.0, active_extruder);

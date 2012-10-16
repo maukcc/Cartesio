@@ -39,7 +39,7 @@
 #define PROBE_PIN          20
 
 #define LED_PIN            -1
-#define FAN_PIN            -1
+#define FAN_PIN            12
 
 #define PS_ON_PIN          -1
 #define KILL_PIN           -1
@@ -118,8 +118,11 @@
 #define HEATER_0_PIN       13 // (extruder)
 #define HEATER_1_PIN       -1
 #define HEATER_2_PIN       -1
-
-#define HEATER_BED_PIN     12 // bed (change to 10 for gate pin of MOSFET on heated bed)
+#ifdef REPRAPPRO_HUXLEY
+  #define HEATER_BED_PIN     10 // bed (change to 10 for gate pin of MOSFET on heated bed)
+#else
+  #define HEATER_BED_PIN     12
+#endif
 #define X_ENABLE_PIN       14
 #define Y_ENABLE_PIN       14
 #define Z_ENABLE_PIN       26

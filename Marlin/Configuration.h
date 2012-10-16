@@ -9,15 +9,15 @@
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
-//#define REPRAPPRO_MENDEL
+#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
 
 // Uncomment ONE of the next two lines - the one for your master controller electronics
-//#define REPRAPPRO_MELZI
+#define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
 
 // Uncomment ONE of the next two lines - the one for the series resistors on your controller
-//#define SERIAL_R 4700
+#define SERIAL_R 4700
 //#define SERIAL_R 10000
 
 // Uncomment the next line if your machine has more than one extruder
@@ -56,7 +56,7 @@
 //User specified version info of THIS file to display in [Pronterface, etc] terminal window during startup.
 //Implementation of an idea by Prof Braino to inform user that any changes made
 //to THIS file by the user have been successfully uploaded into firmware.
-#define STRING_VERSION_CONFIG_H "2012-07-29-1-AB" //Personal revision number for changes to THIS file.
+#define STRING_VERSION_CONFIG_H "2012-10-15-1-JMG" //Personal revision number for changes to THIS file.
 #define STRING_CONFIG_H_AUTHOR "RepRapPro" //Who made the changes.
 
 // This determines the communication speed of the printer
@@ -105,21 +105,24 @@
 // RS 198-961
 #define E_BETA 3960.0
 #define E_RS SERIAL_R
-#define E_R_INF ( 100000.0*exp(-E_BETA/298.15) )
+#define E_NTC 100000.0
+#define E_R_INF ( E_NTC*exp(-E_BETA/298.15) )
 
 
 #ifdef REPRAPPRO_MENDEL
 // RS 484-0149; EPCOS B57550G103J
 #define BED_BETA 3480.0
 #define BED_RS SERIAL_R
-#define BED_R_INF ( 10000.0*exp(-BED_BETA/298.15) )
+#define BED_NTC 10000.0
+#define BED_R_INF ( BED_NTC*exp(-BED_BETA/298.15) )
 #endif
 
 #ifdef REPRAPPRO_HUXLEY
 // VISHAY BC COMPONENTS - NTCS0603E3104FXT
 #define BED_BETA 4100.0
 #define BED_RS SERIAL_R
-#define BED_R_INF ( 100000.0*exp(-BED_BETA/298.15) )
+#define BED_NTC 100000.0
+#define BED_R_INF ( BED_NTC*exp(-BED_BETA/298.15) )
 #endif
 
 
@@ -131,7 +134,7 @@
 
 
 // Actual temperature must be close to target for this long before M109 returns success
-#define TEMP_RESIDENCY_TIME 10  // (seconds)
+#define TEMP_RESIDENCY_TIME 5  // (seconds)
 #define TEMP_HYSTERESIS 5       // (C°) range of +/- temperatures considered "close" to the target one
 #define TEMP_WINDOW     2       // (degC) Window around target to start the recidency timer x degC early.
 
@@ -180,7 +183,7 @@
 //can be software-disabled for whatever purposes by
 #define PREVENT_DANGEROUS_EXTRUDE
 #define EXTRUDE_MINTEMP 170
-#define EXTRUDE_MAXLENGTH (X_MAX_LENGTH+Y_MAX_LENGTH) //prevent extrusion of very large distances.
+#define EXTRUDE_MAXLENGTH (200) //prevent extrusion of very large distances.
 #else
 #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 #endif
@@ -235,25 +238,21 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 #ifdef REPRAPPRO_MENDEL
 
-#define X_MAX_LENGTH 210
-#define Y_MAX_LENGTH 210
-#define Z_MAX_LENGTH 140
+#define AXES_MAX_LENGTHS {210, 210, 140}
 #define HOMING_FEEDRATE {10*60, 10*60, 1*60, 0}  // set the homing speeds (mm/min)
-#define FAST_HOME_FEEDRATE {50*60, 50*60, 1*60, 0}  // set the homing speeds (mm/min)
+#define FAST_HOME_FEEDRATE {50*60, 50*60, 3*60, 0}  // set the homing speeds (mm/min)
 #define DEFAULT_MAX_FEEDRATE  {500, 500, 3, 45}
 #define DEFAULT_MAX_FEEDRATE          {300, 300, 3, 45}    // (mm/sec)    
-#define DEFAULT_MAX_ACCELERATION      {800,800,30,250}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
+#define DEFAULT_MAX_ACCELERATION      {800,800,30,800}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
 
 #else
 
-#define X_MAX_LENGTH 155
-#define Y_MAX_LENGTH 150
-#define Z_MAX_LENGTH 90
+#define AXES_MAX_LENGTHS {155, 150, 90}
 #define HOMING_FEEDRATE {10*60, 10*60, 1*60, 0}  // set the homing speeds (mm/min)
-#define FAST_HOME_FEEDRATE {80*60, 80*60, 4*60, 0}  // set the homing speeds (mm/min)
+#define FAST_HOME_FEEDRATE {80*60, 80*60, 3*60, 0}  // set the homing speeds (mm/min)
 #define DEFAULT_MAX_FEEDRATE  {500, 500, 5, 45}    // (mm/sec)
 #define DEFAULT_MAX_FEEDRATE          {500, 500, 5, 45}    // (mm/sec)    
-#define DEFAULT_MAX_ACCELERATION      {1000,1000,50,250}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
+#define DEFAULT_MAX_ACCELERATION      {1000,1000,50,1000}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
 
 #endif
 
