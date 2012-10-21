@@ -814,14 +814,16 @@ void process_commands()
     case 92: // G92
       if(!code_seen(axis_codes[E_AXIS]))
         st_synchronize();
-      for(int8_t i=0; i < NUM_AXIS; i++) {
-        if(code_seen(axis_codes[i])) { 
+      for(int8_t i=0; i < NUM_AXIS; i++) 
+      {
+        if(code_seen(axis_codes[i])) 
+        { 
            current_position[i] = code_value()+add_homeing[i];  
            if(i == E_AXIS) {
              current_position[i] = code_value();  
              plan_set_e_position(current_position[E_AXIS]);
-           }
-           else {
+           } else 
+           {
              current_position[i] = code_value()+add_homeing[i];  
              plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
            }
@@ -1401,8 +1403,11 @@ void process_commands()
       SERIAL_ECHO(MSG_STANDBY_TEMP);
       SERIAL_ECHO(active_extruder);
       setTargetHotend(extruder_standby[active_extruder], active_extruder);
-    }
-    else 
+      extruder_selected = false;
+#ifdef REPRAPPRO_MULTIMATERIALS
+      slaveDrive(NO_DRIVE); // Sending a non-existent drive number will turn the current one off
+#endif  
+    } else 
     {
       if((tmp_extruder != active_extruder) || !extruder_selected)
       {
@@ -1416,8 +1421,11 @@ void process_commands()
       
          for(int8_t i=0; i < NUM_AXIS; i++) 
          {
-           temp_position[i] = current_position[i];
-           destination[i] = current_position[i];
+           if(i < 3)
+             temp_position[i] = current_position[i]+add_homeing[i];
+           else
+             temp_position[i] = current_position[i];
+           destination[i] = temp_position[i];
          }
          next_feedrate = feedrate;
          x_off_d = extruder_x_off[tmp_extruder] - extruder_x_off[active_extruder];
@@ -1443,9 +1451,10 @@ void process_commands()
            feedrate = fast_home_feedrate[Z_AXIS];
            prepare_move();      
          }
-      
+         st_synchronize();  // Wait for the moves to finish, or it will overwrite current_position[] when it does
          for(int8_t i=0; i < NUM_AXIS; i++) 
            current_position[i] = temp_position[i];
+         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);  
          feedrate = next_feedrate;
          active_extruder = tmp_extruder;
 #ifdef REPRAPPRO_MULTIMATERIALS
@@ -1462,7 +1471,8 @@ void process_commands()
       
       
          codenum = millis(); 
-         //wait_for_temp(active_extruder, codenum);
+         if(degTargetHotend(active_extruder) - degHotend(active_extruder) > 6) 
+           wait_for_temp(active_extruder, codenum);
       }
     }
   }

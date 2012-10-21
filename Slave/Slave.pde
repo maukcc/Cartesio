@@ -87,7 +87,7 @@ void setup()
     pinMode(steps[i], OUTPUT);
     pinMode(dirs[i], OUTPUT);
     pinMode(enables[i], OUTPUT);
-    disable(i);
+    enable(i);
     setDirection(i, FORWARDS);
   }
   currentDrive = NO_DRIVE;
@@ -284,6 +284,9 @@ void command()
   int8_t drive;
   switch(buf[0])
   {
+    case '\n':
+      break;
+      
     case GET_T: // Get temperature of an extruder
       MYSERIAL1.println(getTemperature(buf[1]-'0'), 1); // 1 dec place
       break;
@@ -300,7 +303,7 @@ void command()
       drive = buf[1]-'0';
       if(drive == currentDrive)
         return;
-      disable(currentDrive);
+      //disable(currentDrive);
       currentDrive = drive;
       enable(currentDrive);
       break;

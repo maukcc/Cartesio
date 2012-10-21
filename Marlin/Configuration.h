@@ -3,14 +3,13 @@
 
 // ==============================================================================
 
-// For instructions on setting these constants, see:
+// For instructions on setting these #defines, see:
 // Mendel: http://reprap.org/wiki/RepRapPro_Mendel_maintenance
 // Huxley: http://reprap.org/wiki/RepRapPro_Huxley_maintenance
 
-// Uncomment ONE of the next three lines - the one for your RepRap machine
+// Uncomment ONE of the next two lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
 //#define REPRAPPRO_MENDEL
-//#define REPRAPPRO_WALLACE
 
 // Uncomment ONE of the next two lines - the one for your master controller electronics
 //#define REPRAPPRO_MELZI
@@ -47,7 +46,7 @@
 
 // Uncomment this if you are experimenting, know what you are doing, and want to switch off some safety
 // features, e.g. allow extrude at low temperature etc.
-#define DEVELOPING
+//#define DEVELOPING
 
 // This configurtion file contains the basic settings.
 // Advanced settings can be found in Configuration_adv.h 
@@ -260,7 +259,12 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 // default settings 
 // X, Y, Z, E steps per mm
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 875} 
+#ifdef REPRAPPRO_MULTIMATERIALS
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 929}   // New RepRapPro extruder with internal gear
+#else
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 875}  // Old RepRapPro extruder
+#endif
+
 
 // Defaults changed by the G10 command
 

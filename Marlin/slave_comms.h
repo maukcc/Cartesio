@@ -94,6 +94,7 @@ FORCE_INLINE void slaveDir(int8_t drive, bool forward)
 	slaveXmitBuffer[2] = 0;
 	talkToSlave(slaveXmitBuffer);
         setDir[drive] = forward;
+        delay(1); // Give it a moment
 }
 
 FORCE_INLINE void slaveDrive(int8_t drive)

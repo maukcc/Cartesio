@@ -92,10 +92,10 @@
 
 #define TEMP_INTERVAL 500  // check temperature this many milliseconds
 #define PID_MAX 255 // limits current to nozzle
-#define KP 0.0059808404
-#define KI 0.0038071420303
-#define KD 0.0120097053954
-#define PID_MAX_MIN 87.10397376
+#define KP 0.00578987078338006
+#define KI 0.006964132180495739
+#define KD 0.016006175805213043
+#define PID_MAX_MIN 55 //49.216722904286335
 
 #define TEST_POWER 0.4
 #define TEST_INTERVAL 0.4
