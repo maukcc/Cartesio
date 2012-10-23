@@ -8,8 +8,8 @@
 // Huxley: http://reprap.org/wiki/RepRapPro_Huxley_maintenance
 
 // Uncomment ONE of the next three lines - the one for your RepRap machine
-#define REPRAPPRO_HUXLEY
-//#define REPRAPPRO_MENDEL
+//#define REPRAPPRO_HUXLEY
+#define REPRAPPRO_MENDEL
 //#define REPRAPPRO_WALLACE
 
 // Uncomment ONE of the next two lines - the one for your master controller electronics
