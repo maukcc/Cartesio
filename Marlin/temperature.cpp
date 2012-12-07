@@ -689,8 +689,11 @@ ISR(TIMER0_COMPB_vect)
     raw_temp_1_value = 0;
     raw_temp_2_value = 0;
     raw_temp_bed_value = 0;
+    
+    //check_all_temps(); // This checks for above max and below min
 
-    for(unsigned char e = 0; e < EXTRUDERS_T; e++) {
+/*    for(unsigned char e = 0; e < EXTRUDERS_T; e++) 
+    {
        if(current_raw[e] >= maxttemp[e]) {
           target_raw[e] = 0;
           max_temp_error(e);
@@ -710,7 +713,8 @@ ISR(TIMER0_COMPB_vect)
           #endif
        }
     }
-  
+*/
+
 #if defined(BED_MAXTEMP) && (HEATER_BED_PIN > -1)
     if(current_raw_bed >= bed_maxttemp) {
        target_raw_bed = 0;

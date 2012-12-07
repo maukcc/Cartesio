@@ -14,19 +14,14 @@
 
 #include "slaveCommands.h"
 
-//#define DEBUG
-#define DEBUG_STEP
-//#define DEBUG_HEAT
-
 // Various...
 
-#ifdef DEBUG
-#define MYSERIAL1 Serial   // comms to PC
-#define BAUD 115200        // comms speed
-#else
-#define MYSERIAL1 Serial1  // comms to master
+#define MASTER Serial1  // comms to master
 #define BAUD 250000        // comms speed
-#endif
+
+// So we can talk and listen to the user directly while the Master is in control
+#define DEBUG_IO Serial
+#define DEBUG_BAUD 115200
 
 #define BUFLEN 64          // input string
 #define RING_B 32          // DDA parameter ring buffer
@@ -92,13 +87,13 @@
 
 #define TEMP_INTERVAL 500  // check temperature this many milliseconds
 #define PID_MAX 255 // limits current to nozzle
-#define KP 0.00578987078338006
-#define KI 0.006964132180495739
-#define KD 0.016006175805213043
-#define PID_MAX_MIN 55 //49.216722904286335
+#define KP { 0.01,  0.01 } //8
+#define KI { 0.0032, 0.0035 }
+#define KD { 0.04, 0.04 }
+#define PID_MAX_MIN { 70, 95 }
 
-#define TEST_POWER 0.4
-#define TEST_INTERVAL 0.4
+#define TEST_POWER 0.25
+#define TEST_INTERVAL 1
 #define TEST_DURATION 240
 
 #endif

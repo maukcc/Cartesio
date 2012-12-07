@@ -34,6 +34,7 @@ unsigned long time;
 char buf[BUFLEN];
 char scratch[2*BUFLEN];
 int bp;
+boolean debug;
 
 // Pin arrays
 
@@ -48,13 +49,14 @@ volatile int8_t currentDrive = NO_DRIVE;
 // Heater arrays
 
 float setTemps[HOT_ENDS];
+int currentTemps[HOT_ENDS];
 
 // PID variables
 
-float temp_iState_max_min[HOT_ENDS];
-float Kp[HOT_ENDS];
-float Ki[HOT_ENDS];
-float Kd[HOT_ENDS];
+float temp_iState_max_min[HOT_ENDS] = PID_MAX_MIN;
+float Kp[HOT_ENDS] = KP;
+float Ki[HOT_ENDS] = KI;
+float Kd[HOT_ENDS] = KD;
 float temp_iState[HOT_ENDS];
 float temp_dState[HOT_ENDS];
 float dt = 0.001*(float)TEMP_INTERVAL;
@@ -79,7 +81,10 @@ ISR ( PCINT2_vect )
 void setup() 
 {
   int8_t i;
-  MYSERIAL1.begin(BAUD); 
+  DEBUG_IO.begin(DEBUG_BAUD);
+  DEBUG_IO.println("RepRapPro slave controller restarted.");
+  debug = false;
+  MASTER.begin(BAUD); 
   bp = 0;
 
   for(i = 0; i < DRIVES; i++)
@@ -97,13 +102,14 @@ void setup()
     pinMode(therms[i], INPUT);
     pinMode(heaters[i], OUTPUT);
     analogWrite(heaters[i], 0);
-    Kp[i] = KP;
-    Ki[i] = KI;
-    Kd[i] = KD;
+//    Kp[i] = KP;
+//    Ki[i] = KI;
+//    Kd[i] = KD;
     temp_iState[i] = 0.0;
     temp_dState[i] = 0.0;
-    temp_iState_max_min[i] = PID_MAX_MIN;
+//    temp_iState_max_min[i] = PID_MAX_MIN;
     setTemperature(i, 0);
+    currentTemps[i] = 0;
   }
   PCICR |= (1<<PCIE2);
   PCMSK2 |= (1<<PCINT17);
@@ -122,10 +128,13 @@ inline char* strplus(char* a, char* b)
 
 inline void error(char* s)
 {
+  DEBUG_IO.println(s);
 }
 
 void stop()
 {
+  if(debug)
+    DEBUG_IO.println("Stopped");
   int8_t i;
   for(i = 0; i < DRIVES; i++)
     disable(i);
@@ -138,6 +147,14 @@ void stop()
    Heaters and temperature
 */
 
+
+inline void debugMessage(char* s, int i)
+{
+  if(!debug)
+   return;
+  DEBUG_IO.print(s);
+  DEBUG_IO.println(i); 
+}
 
 inline void setTemperature(int8_t heater, int t)
 {
@@ -159,8 +176,10 @@ inline float getTemperature(int8_t heater)
 {
   if(heater < 0 || heater >= HOT_ENDS)
     return ABS_ZERO;
-  float raw = (float)getRawTemperature(heater);
-  return ABS_ZERO + TH_BETA/log( (raw*TH_RS/(AD_RANGE - raw)) /TH_R_INF );
+  float r = (float)getRawTemperature(heater);
+  r = ABS_ZERO + TH_BETA/log( (r*TH_RS/(AD_RANGE - r)) /TH_R_INF );
+  currentTemps[heater] = (int)r;
+  return r;
 }
 
 inline float getTargetTemperature(int8_t heater)
@@ -180,10 +199,6 @@ inline float pid(int8_t heater)
    
    target = getTargetTemperature(heater);
    current = getTemperature(heater);   
-#ifdef DEBUG
-       MYSERIAL1.print(current);
-       MYSERIAL1.print(' ');
-#endif   
    error = target - current;
 
    float result = Kp[heater]*error + Ki[heater]*temp_iState[heater] + Kd[heater]
@@ -204,10 +219,7 @@ inline float pid(int8_t heater)
 void heatControl()
 { 
   for(int8_t heater = 0; heater < HOT_ENDS; heater++)
-     analogWrite(heaters[heater], (int)(pid(heater)*PID_MAX));
-#ifdef DEBUG
-  MYSERIAL1.println();
-#endif      
+     analogWrite(heaters[heater], (int)(pid(heater)*PID_MAX));    
 }
 
 inline void tempCheck()
@@ -257,26 +269,17 @@ inline void disable(int8_t drive)
    The main loop and command interpreter
 */
 
-void test()
+void heaterTest(int8_t h)
 {
-#ifdef DEBUG_STEP 
-    for(int i = 0; i < 1000; i++)
-    {
-      stepExtruder(currentDrive);
-      delay(1);
-    }
-#endif
-#ifdef DEBUG_HEAT
-  analogWrite(heaters[heater], (int)(TEST_POWER*PID_MAX));
+  analogWrite(heaters[h], (int)(TEST_POWER*PID_MAX));
   float t = 0;
   while(t < TEST_DURATION)
   {
-    MYSERIAL1.println(getTemperature(heater));
+    DEBUG_IO.println(getTemperature(h));
     delay((int)(1000*TEST_INTERVAL));
     t += TEST_INTERVAL;
   }
-  analogWrite(heaters[heater], 0);
-#endif
+  analogWrite(heaters[h], 0);
 }
 
 void command()
@@ -288,15 +291,18 @@ void command()
       break;
       
     case GET_T: // Get temperature of an extruder
-      MYSERIAL1.println(getTemperature(buf[1]-'0'), 1); // 1 dec place
+      MASTER.println(currentTemps[buf[1]-'0']);
+      debugMessage("Sent temp: ", currentTemps[buf[1]-'0']);
       break;
       
     case GET_TT: // Get target temperature of an extruder
-      MYSERIAL1.println(getTargetTemperature(buf[1]-'0'), 1); // 1 dec place
+      MASTER.println((int)getTargetTemperature(buf[1]-'0'));
+      debugMessage("Sent target temp: ", (int)getTargetTemperature(buf[1]-'0'));
       break;      
     
     case SET_T: // Set temperature of an extruder
       setTemperature(buf[1]-'0', atoi(&buf[2]));
+      debugMessage("Set target temp to: ", (int)getTargetTemperature(buf[1]-'0'));
       break;
       
     case DRIVE:  // Set the current drive
@@ -306,14 +312,17 @@ void command()
       //disable(currentDrive);
       currentDrive = drive;
       enable(currentDrive);
+      debugMessage("Drive set to: ", currentDrive);
       break;
       
     case DIR_F:  // Set an extruder's direction forwards
       setDirection(buf[1]-'0', FORWARDS);
+      debugMessage("Forwards set for: ", buf[1]-'0');
       break;
     
     case DIR_B:   // Set an extruder's direction backwards
       setDirection(buf[1]-'0', BACKWARDS);
+      debugMessage("Backwards set for: ", buf[1]-'0');
       break;
     
     case SET_PID: // Set PID parameters
@@ -328,6 +337,11 @@ void command()
         temp_iState_max = pid_i_max / Ki;
         */
         break;
+        
+    case DEBUG:
+      debug = buf[1]-'0';
+      debugMessage("Debug set to: ", debug);
+      break;
     
     case Q_DDA: // Queue DDA parameters
       break;
@@ -340,10 +354,11 @@ void command()
       break;
       
     case NO_OP:
+    case 0:
       break;
       
-    case TEST:
-      test();
+    case H_TEST:
+      heaterTest(buf[1]-'0');
       break;
       
     default:
@@ -354,9 +369,9 @@ void command()
 
 inline void incomming()
 {
-  if(MYSERIAL1.available())
+  if(MASTER.available())
   {
-    buf[bp] = (char)MYSERIAL1.read();
+    buf[bp] = (char)MASTER.read();
     if(buf[bp] == '\n')
     {
        buf[bp] = 0;

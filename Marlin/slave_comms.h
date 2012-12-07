@@ -10,13 +10,14 @@
 
 #include "slaveCommands.h"
 
-#define TIMEOUT 4 // ms
+#define TIMEOUT 4 // ms - empirically set with reliability test (2 ms works, 1 doesn't...)
 #define SLAVE_BUF 64
 #define SLAVE_BAUD 250000
 
 extern char slaveXmitBuffer[];
 extern char slaveRcvBuffer[];
 extern bool setDir[];
+extern bool firstTalk;
 extern long timeout;
 
 
@@ -27,6 +28,7 @@ bool slaveIsHeatingHotend(uint8_t heater);
 bool slaveIsCoolingHotend(uint8_t heater);
 void slaveStep(int8_t drive, int8_t v);
 void slaveDir(int8_t drive, bool forward);
+void clearSlaveChannel();
 void talkToSlave(char s[]);
 char* listenToSlave();
 void setup_slave();
@@ -38,8 +40,8 @@ FORCE_INLINE float getFloatFromSlave(uint8_t device, char command)
 	slaveXmitBuffer[2] = 0;
 	talkToSlave(slaveXmitBuffer);
 	listenToSlave();
+        //Serial.print(slaveRcvBuffer);Serial.print(" **");
 	return atof(slaveRcvBuffer); 
-    return 23;
 }
 
 
@@ -105,7 +107,32 @@ FORCE_INLINE void slaveDrive(int8_t drive)
 	talkToSlave(slaveXmitBuffer);
 }
 
-FORCE_INLINE void talkToSlave(char s[]) { MYSERIAL1.println(s); }
+// Clear the comms channel
+
+FORCE_INLINE void clearSlaveChannel()
+{
+  firstTalk = false;
+  MYSERIAL1.print("\n\n\n\n"); 
+  int c = 0;
+  timeout = millis();
+  while((millis() - timeout < TIMEOUT))
+  {
+	while(!MYSERIAL1.available())
+        {
+           if (millis() - timeout > TIMEOUT)
+             return;
+        }
+        c = MYSERIAL1.read();
+  }  
+}
+
+FORCE_INLINE void talkToSlave(char s[]) 
+{ 
+  if(firstTalk)
+    clearSlaveChannel();
+  MYSERIAL1.println(s); 
+}
+
 
 FORCE_INLINE char* listenToSlave() 
 {
@@ -114,13 +141,19 @@ FORCE_INLINE char* listenToSlave()
 	int8_t i = 0;
 	while(c != '\n' && (millis() - timeout < TIMEOUT))
 	{
-		while(!MYSERIAL1.available() && (millis() - timeout < TIMEOUT));
+		while(!MYSERIAL1.available())
+                {
+                  if (millis() - timeout > TIMEOUT)
+                  {
+                    slaveRcvBuffer[0] = 0;
+                    return slaveRcvBuffer;
+                  }
+                }
 		c = MYSERIAL1.read();
-		//timeout = millis();
 		slaveRcvBuffer[i] = (char)c;
 		i++;
 	}
-	slaveRcvBuffer[i] = 0;
+	slaveRcvBuffer[i-1] = 0;
 	return slaveRcvBuffer;
 }
 

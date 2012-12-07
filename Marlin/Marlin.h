@@ -184,6 +184,8 @@ void prepare_move();
 void kill();
 void Stop();
 
+boolean check_all_temps();
+
 bool IsStopped();
 
 void enquecommand(const char *cmd); //put an ascii command at the end of the current buffer.

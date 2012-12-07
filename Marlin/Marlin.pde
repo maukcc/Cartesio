@@ -74,6 +74,9 @@
 // G92 - Set current position to cordinates given
 
 //RepRap M Codes
+// M0 - Shut down
+// M1 - Shut down but stay listening
+// M112 - emergency stop
 // M104 - Set extruder target temp (deprecated)
 // M105 - Read current temp
 // M106 - Fan on
@@ -218,6 +221,7 @@ static unsigned long stoptime=0;
 
 static uint8_t tmp_extruder;
 
+static uint8_t dudTempCount;
 
 bool Stopped=false;
 
@@ -613,6 +617,54 @@ bool code_seen(char code)
     feedrate = 0.0;\
     endstops_hit_on_purpose();\
   }
+
+inline boolean check_all_temps()
+{
+  boolean result = true;
+  float temp;
+  for(uint8_t e = 0; e < EXTRUDERS; e++)
+  {
+    temp = degHotend(e);
+#ifndef BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
+    if(temp > HEATER_MAXTEMP || temp < HEATER_MINTEMP)
+    {
+      dudTempCount++;
+      if(dudTempCount > 2) // Don't bother with the odd dud reading, but if we get three in a row kill it
+        Stop();
+    } else
+      dudTempCount = 0;
+#endif
+    if(degTargetHotend(e) > 30 && abs(temp - degTargetHotend(e)) > TEMP_HYSTERESIS)  // 30 is because we don't care about cold temps.
+      result = false;
+    SERIAL_PROTOCOLPGM("  T");
+    SERIAL_PROTOCOL( (int)e );
+    SERIAL_PROTOCOLPGM(": ");
+    SERIAL_PROTOCOL_F(temp,1);
+  }
+  SERIAL_PROTOCOLLN("");
+  return result;  
+}
+
+inline void wait_for_all_extruder_temps()
+{
+  long oldTime = millis();
+  dudTempCount = 0;
+  boolean allAtTemp = check_all_temps();
+  while(!allAtTemp)
+  {
+    if(millis() - oldTime >= 1000L)
+    {
+      oldTime = millis();
+      allAtTemp = check_all_temps();
+    }
+    manage_heater();
+    manage_inactivity(1);
+    lcd_status();
+    led_status();
+  }
+  starttime=millis();
+  previous_millis_cmd = millis();
+}
   
 void wait_for_temp(uint8_t& t_ext, unsigned long& codenum)
 {
@@ -719,18 +771,20 @@ void process_commands()
       break;
       
       case 10: // Set offsets
-      if(code_seen('P'))
-      {
-         tmp_extruder = code_value();
-         get_coordinates();
-         extruder_x_off[tmp_extruder] = destination[0]; // X
-         extruder_y_off[tmp_extruder] = destination[1]; // Y
-         extruder_z_off[tmp_extruder] = destination[2]; // Z
-         if(code_seen('R'))
-             extruder_standby[tmp_extruder] = code_value();
-         if(code_seen('S'))
-             extruder_temperature[tmp_extruder] = code_value();
-      }
+        if(code_seen('P'))
+        {
+           tmp_extruder = code_value();
+           if(code_seen(axis_codes[X_AXIS])) 
+            extruder_x_off[tmp_extruder] = (float)code_value();
+           if(code_seen(axis_codes[Y_AXIS])) 
+            extruder_y_off[tmp_extruder] = (float)code_value();
+           if(code_seen(axis_codes[Z_AXIS])) 
+            extruder_z_off[tmp_extruder] = (float)code_value();
+           if(code_seen('R'))
+               extruder_standby[tmp_extruder] = code_value();
+           if(code_seen('S'))
+               extruder_temperature[tmp_extruder] = code_value();
+        }
       break;
   
     case 28: //G28 Home all Axis one at a time
@@ -837,9 +891,12 @@ void process_commands()
   {
     switch( (int)code_value() ) 
     {
-    case 0: // Stops - add me...
+    case 0: // Stops
     case 1:
+            Stop();
+            break;
     case 112:
+            kill();
       break;
 
     case 17:
@@ -1366,30 +1423,18 @@ void process_commands()
     }
     break;
 #ifdef REPRAPPRO_MULTIMATERIALS    
-    case 555: // Slave comms test
-      talkToSlave("t0");
-      SERIAL_ECHO_START;
-      SERIAL_ECHOPGM("Slave response:");
-      SERIAL_ECHO(listenToSlave());
+    case 555: // Slave heater test - heater 0
+      talkToSlave("A0");
       break;
-    case 556: // Set temp
-      talkToSlave("T0100");
+    case 556:  // Slave heater test - heater 1
+      talkToSlave("A1");
       break;
-    case 557:  // Call stepper test 
-      slaveDrive(1);   
-      talkToSlave("A");
-      slaveDrive(NO_DRIVE);  
+    case 557:
+      talkToSlave("W1"); // slave debugging on
       break;
-    case 558: // Send interrupt
-      slaveDrive(1); 
-      delay(10);
-      for(int ii=0; ii < 1000; ii++)
-      {
-        slaveStep(0, false);
-        delay(1);
-      }
-      slaveDrive(NO_DRIVE); 
-      break;    
+    case 558:
+      talkToSlave("W0"); // slave debugging off
+      break;      
 #endif
     }
   }
@@ -1408,12 +1453,16 @@ void process_commands()
       slaveDrive(NO_DRIVE); // Sending a non-existent drive number will turn the current one off
 #endif  
     } else 
-    {
+    { 
       if((tmp_extruder != active_extruder) || !extruder_selected)
       {
-         setTargetHotend(extruder_standby[active_extruder], active_extruder);
          extruder_selected = true;
-      
+         
+         setTargetHotend(extruder_standby[active_extruder], active_extruder);
+         setTargetHotend(extruder_temperature[tmp_extruder], tmp_extruder);
+         codenum = millis();
+         wait_for_all_extruder_temps(); 
+         
          // Deal with offsets here:  record current pos as temp_position; 
          // move to temp_position + tmp_extruder - active_extruder; 
          // Set current pos to be temp_position
@@ -1456,6 +1505,7 @@ void process_commands()
            current_position[i] = temp_position[i];
          plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);  
          feedrate = next_feedrate;
+
          active_extruder = tmp_extruder;
 #ifdef REPRAPPRO_MULTIMATERIALS
          if(active_extruder > 0)
@@ -1466,13 +1516,6 @@ void process_commands()
          SERIAL_ECHO_START;
          SERIAL_ECHO(MSG_ACTIVE_EXTRUDER);
          SERIAL_PROTOCOLLN((int)active_extruder);
-      
-         setTargetHotend(extruder_temperature[active_extruder], active_extruder);
-      
-      
-         codenum = millis(); 
-         if(degTargetHotend(active_extruder) - degHotend(active_extruder) > 6) 
-           wait_for_temp(active_extruder, codenum);
       }
     }
   }
@@ -1649,7 +1692,9 @@ void kill()
   disable_e0();
   disable_e1();
   disable_e2();
-  
+#ifdef REPRAPPRO_MULTIMATERIALS
+  talkToSlave("S");
+#endif  
   SERIAL_ERROR_START;
   SERIAL_ERRORLNPGM(MSG_ERR_KILLED);
   LCD_MESSAGEPGM(MSG_KILLED);
@@ -1667,6 +1712,9 @@ void Stop()
     SERIAL_ERRORLNPGM(MSG_ERR_STOPPED);
     LCD_MESSAGEPGM(MSG_STOPPED);
   }
+#ifdef REPRAPPRO_MULTIMATERIALS
+  talkToSlave("S");
+#endif
 }
 
 bool IsStopped() { return Stopped; };

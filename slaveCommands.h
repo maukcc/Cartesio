@@ -21,9 +21,10 @@
 #define SET_PID 'P'    // Set PID parameters
 #define Q_DDA 'Q'      // Queue DDA parameters
 #define SET_DDA 'D'    // Set DDA parameters from head of queue
+#define DEBUG 'W'      // Debugging on/off
 #define STOP 'S'       // Shut down everything
 #define NO_OP 'N'      // Do nothing
-#define TEST 'A'       // For debugging
+#define H_TEST 'A'     // Heater test
 #define DRIVE 'd'      // Set current drive
 #define DIR_F 'F'      // Set direction forward
 #define DIR_B 'B'      // Set direction backwards
