@@ -6,11 +6,6 @@
 *
 ****************************************************************************************/
 #if MOTHERBOARD == 62
-#undef MOTHERBOARD
-#define MOTHERBOARD 6
-#define SANGUINOLOLU_V_1_2 
-#endif
-#if MOTHERBOARD == 6
 #define KNOWN_BOARD 1
 #ifndef __AVR_ATmega644P__
 #ifndef __AVR_ATmega1284P__
@@ -48,23 +43,15 @@
 #define HEATER_1_PIN       -1
 #define HEATER_2_PIN       -1
 
-#ifdef SANGUINOLOLU_V_1_2
-
-#define HEATER_BED_PIN     10 // (bed) - 10 for spare DIO pin and bed MOSFET, 12 for SL MOSFET
+#ifdef REPRAPPRO_HUXLEY
+  #define HEATER_BED_PIN     10 // bed (change to 10 for gate pin of MOSFET on heated bed)
+#else
+  #define HEATER_BED_PIN     12
+#endif
 #define X_ENABLE_PIN       14
 #define Y_ENABLE_PIN       14
 #define Z_ENABLE_PIN       26
 #define E0_ENABLE_PIN       14
-
-#else
-
-#define HEATER_BED_PIN       14  // (bed)
-#define X_ENABLE_PIN       -1
-#define Y_ENABLE_PIN       -1
-#define Z_ENABLE_PIN       -1
-#define E0_ENABLE_PIN       -1
-
-#endif
 
 #define TEMP_0_PIN          7   // MUST USE ANALOG INPUT NUMBERING NOT DIGITAL OUTPUT NUMBERING!!!!!!!!! (pin 33 extruder)
 #define TEMP_1_PIN         -1
