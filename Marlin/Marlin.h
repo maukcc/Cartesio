@@ -18,12 +18,13 @@
 #include <string.h>
 #include <inttypes.h>
 
+#ifndef REPRAPPRO_DUE
 #include <util/delay.h>
 #include <avr/pgmspace.h>
 #include <avr/eeprom.h>
 #include  <avr/wdt.h>
 #include  <avr/interrupt.h>
-
+#endif
 
 #include "fastio.h"
 
@@ -183,6 +184,7 @@ void get_coordinates();
 void prepare_move();
 void kill();
 void Stop();
+void shutDown();
 
 boolean check_all_temps();
 

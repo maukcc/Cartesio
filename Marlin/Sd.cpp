@@ -1,3 +1,5 @@
+#ifndef REPRAPPRO_DUE
+
 #include "Marlin.h"
 #include "Sd.h"
 #include "ultralcd.h"
@@ -3641,4 +3643,6 @@ bool SdVolume::init(Sd2Card* dev, uint8_t part) {
  fail:
   return false;
 }
+#endif
+
 #endif

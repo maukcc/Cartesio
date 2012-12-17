@@ -1,3 +1,12 @@
+#ifdef REPRAPPRO_DUE
+
+#include <SPI.h>
+#include <SD.h>
+
+
+#else
+
+
 /* Arduino SdFat Library
  * Copyright (C) 2010 by William Greiman
  *
@@ -2481,4 +2490,6 @@ private:
 #define IS_SD_PRINTING (false)
 
 #endif //SDSUPPORT
+#endif
+
 #endif

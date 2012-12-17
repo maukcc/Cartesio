@@ -51,7 +51,7 @@
 #include "pins_arduino.h"
 #include "slave_comms.h"
 
-#define VERSION_STRING  "1.0.1 RRP"
+#define VERSION_STRING  "1.0.2 RRP"
 
 // look here for descriptions of gcodes: http://linuxcnc.org/handbook/gcode/g-code.html
 // http://objects.reprap.org/wiki/Mendel_User_Manual:_RepRapGCodes
@@ -618,9 +618,9 @@ bool code_seen(char code)
     endstops_hit_on_purpose();\
   }
 
-inline boolean check_all_temps()
+inline uint8_t check_all_temps(uint8_t goodCount)
 {
-  boolean result = true;
+  boolean ok = true;
   float temp;
   for(uint8_t e = 0; e < EXTRUDERS; e++)
   {
@@ -635,27 +635,31 @@ inline boolean check_all_temps()
       dudTempCount = 0;
 #endif
     if(degTargetHotend(e) > 30 && abs(temp - degTargetHotend(e)) > TEMP_HYSTERESIS)  // 30 is because we don't care about cold temps.
-      result = false;
+      ok = false;
     SERIAL_PROTOCOLPGM("  T");
     SERIAL_PROTOCOL( (int)e );
     SERIAL_PROTOCOLPGM(": ");
     SERIAL_PROTOCOL_F(temp,1);
   }
   SERIAL_PROTOCOLLN("");
-  return result;  
+  if(ok)
+    goodCount++;
+  else
+    goodCount = 0;
+  return goodCount;  
 }
 
 inline void wait_for_all_extruder_temps()
 {
   long oldTime = millis();
   dudTempCount = 0;
-  boolean allAtTemp = check_all_temps();
-  while(!allAtTemp)
+  uint8_t goodCount = check_all_temps(0);
+  while(goodCount < 3)
   {
-    if(millis() - oldTime >= 1000L)
+    if(millis() - oldTime >= 500L)
     {
       oldTime = millis();
-      allAtTemp = check_all_temps();
+      goodCount = check_all_temps(goodCount);
     }
     manage_heater();
     manage_inactivity(1);
@@ -893,7 +897,7 @@ void process_commands()
     {
     case 0: // Stops
     case 1:
-            Stop();
+            shutDown();
             break;
     case 112:
             kill();
@@ -1700,6 +1704,21 @@ void kill()
   LCD_MESSAGEPGM(MSG_KILLED);
   suicide();
   while(1); // Wait for reset
+}
+
+void shutDown()
+{
+  st_synchronize();
+  disable_heater();
+  disable_x();
+  disable_y();
+  disable_z();
+  disable_e0();
+  disable_e1();
+  disable_e2();  
+#ifdef REPRAPPRO_MULTIMATERIALS
+  talkToSlave("S");
+#endif
 }
 
 void Stop()

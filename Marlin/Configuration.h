@@ -11,9 +11,10 @@
 //#define REPRAPPRO_HUXLEY
 #define REPRAPPRO_MENDEL
 
-// Uncomment ONE of the next two lines - the one for your master controller electronics
+// Uncomment ONE of the next three lines - the one for your master controller electronics
 #define REPRAPPRO_MELZI
 //#define REPRAPPRO_SANGUINOLOLU
+//#define REPRAPPRO_DUE
 
 // Uncomment ONE of the next two lines - the one for the series resistors on your controller
 #define SERIAL_R 4700
@@ -34,7 +35,9 @@
 
 #ifndef REPRAPPRO_MELZI
 #ifndef REPRAPPRO_SANGUINOLOLU
-#error Uncomment one of #define REPRAPPRO_MELZI or REPRAPPRO_SANGUINOLOLU at the start of the file Configuration.h
+#ifndef REPRAPPRO_DUE
+#error Uncomment one of #define REPRAPPRO_MELZI, REPRAPPRO_SANGUINOLOLU or REPRAPPRO_DUE at the start of the file Configuration.h
+#endif
 #endif
 #endif
 
