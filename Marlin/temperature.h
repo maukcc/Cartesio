@@ -47,6 +47,8 @@ float analog2tempBed(int raw);
 extern int target_raw[EXTRUDERS_T];  
 extern int heatingtarget_raw[EXTRUDERS_T];  
 extern int current_raw[EXTRUDERS_T];
+  static int minttemp[EXTRUDERS_T] = { 50 };
+  static int maxttemp[EXTRUDERS_T] = { 16383 }; // the first value used for all
 extern int target_raw_bed;
 extern int current_raw_bed;
 extern int b_beta;
@@ -119,6 +121,15 @@ FORCE_INLINE bool isCoolingHotend(uint8_t extruder)
 
 FORCE_INLINE float degHotend(uint8_t extruder) {  
   return analog2temp(current_raw[extruder], extruder);
+};
+FORCE_INLINE int rawHotend(uint8_t extruder) {  
+  return current_raw[extruder];
+};
+FORCE_INLINE int minHotend(uint8_t extruder) {  
+  return minttemp[extruder];
+};
+FORCE_INLINE int maxHotend(uint8_t extruder) {  
+  return maxttemp[extruder];
 };
 
 FORCE_INLINE void setTargetHotend(const float &celsius, uint8_t extruder) {  

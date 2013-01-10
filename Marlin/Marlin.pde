@@ -986,6 +986,16 @@ void process_commands()
     case 140: // M140 set bed temp
       if (code_seen('S')) setTargetBed(code_value());
       break;
+    case 1105:
+      #if (TEMP_0_PIN > -1)
+        SERIAL_PROTOCOLPGM("ok T0 raw:");
+        SERIAL_PROTOCOL(rawHotend(tmp_extruder)); 
+        SERIAL_PROTOCOLPGM(", min:");
+        SERIAL_PROTOCOL(minHotend(tmp_extruder)); 
+        SERIAL_PROTOCOLPGM(", max:");
+        SERIAL_PROTOCOL(maxHotend(tmp_extruder)); 
+      #endif
+      break;
     case 105 : // M105
       tmp_extruder = active_extruder;
       if(code_seen('T')) {

@@ -91,8 +91,8 @@ static unsigned long  previous_millis_bed_heater;
 
 
 // Init min and max temp with extreme values to prevent false errors during startup
-  static int minttemp[EXTRUDERS_T] = { 0 };
-  static int maxttemp[EXTRUDERS_T] = { 16383 }; // the first value used for all
+//  static int minttemp[EXTRUDERS_T] = { 0 };
+//  static int maxttemp[EXTRUDERS_T] = { 16383 }; // the first value used for all
   static int bed_minttemp = 0;
   static int bed_maxttemp = 16383;
   
