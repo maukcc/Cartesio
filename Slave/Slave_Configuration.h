@@ -45,10 +45,12 @@
 #define THERMS { 7, 6 } // Analogue
 #define HEATERS { 13, 12 }
 
-// Incoming master-clock interrupt on D17 (chip pin 23, PCINT17)
-// Change state on this to step a drive
+#define LED_PIN 27
 
-#define INTERRUPT_PIN 17  
+// Incoming master-clock interrupt on D16 (PCINT16)
+// Change state on this to step a drive
+  
+#define INTERRUPT_PIN 16 
 
 //===========================================================================
 //=============================Thermal Settings  ============================

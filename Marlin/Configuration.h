@@ -268,7 +268,7 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 // default settings 
 // X, Y, Z, E steps per mm
 #ifdef REPRAPPRO_MULTIMATERIALS
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 929}   // New RepRapPro extruder with internal gear
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 611}   // New RepRapPro extruder with internal gear//929
 #else
 #define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 875}  // Old RepRapPro extruder
 #endif

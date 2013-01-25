@@ -102,18 +102,21 @@ void setup()
     pinMode(therms[i], INPUT);
     pinMode(heaters[i], OUTPUT);
     analogWrite(heaters[i], 0);
-//    Kp[i] = KP;
-//    Ki[i] = KI;
-//    Kd[i] = KD;
     temp_iState[i] = 0.0;
     temp_dState[i] = 0.0;
-//    temp_iState_max_min[i] = PID_MAX_MIN;
     setTemperature(i, 0);
     currentTemps[i] = 0;
   }
+  
+  if(LED_PIN >= 0)
+    pinMode(LED_PIN, OUTPUT);
+
+// See http://www.me.ucsb.edu/~me170c/Code/How_to_Enable_Interrupts_on_ANY_pin.pdf
+  
   PCICR |= (1<<PCIE2);
-  PCMSK2 |= (1<<PCINT17);
+  PCMSK2 |= (1<<PCINT16);
   MCUCR = (1<<ISC01) | (1<<ISC00); // Rising and falling edge trigger
+  
   pinMode(INTERRUPT_PIN, INPUT);
   digitalWrite(INTERRUPT_PIN, HIGH); // Set pullup
   interrupts();
@@ -226,6 +229,10 @@ inline void tempCheck()
 {
   if( (long)(millis() - time) < 0)
     return;
+    
+  if(LED_PIN >= 0)
+    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+    
   time += TEMP_INTERVAL;
   heatControl();
 }
