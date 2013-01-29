@@ -125,6 +125,7 @@ void process_commands();
 
 void manage_inactivity(byte debug);
 
+
 #if X_ENABLE_PIN > -1
   #define  enable_x() WRITE(X_ENABLE_PIN, X_ENABLE_ON)
   #define disable_x() WRITE(X_ENABLE_PIN,!X_ENABLE_ON)
@@ -171,6 +172,14 @@ void manage_inactivity(byte debug);
 #else
   #define enable_e2()  /* nothing */
   #define disable_e2() /* nothing */
+#endif
+
+
+#ifdef REPRAPPRO_MULTIMATERIALS
+#define disable_e1() slaveDriveOff(1)
+#define disable_e2() slaveDriveOff(2)
+#define enable_e1() slaveDriveOn(1)
+#define enable_e2() slaveDriveOn(2)
 #endif
 
 

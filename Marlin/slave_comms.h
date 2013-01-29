@@ -107,6 +107,22 @@ FORCE_INLINE void slaveDrive(int8_t drive)
 	talkToSlave(slaveXmitBuffer);
 }
 
+FORCE_INLINE void slaveDriveOff(int8_t drive)
+{
+	slaveXmitBuffer[0] = NO_MOTOR;
+	slaveXmitBuffer[1] = '0' + drive - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+	slaveXmitBuffer[2] = 0;
+	talkToSlave(slaveXmitBuffer);
+}
+
+FORCE_INLINE void slaveDriveOn(int8_t drive)
+{
+	slaveXmitBuffer[0] = MOTOR;
+	slaveXmitBuffer[1] = '0' + drive - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+	slaveXmitBuffer[2] = 0;
+	talkToSlave(slaveXmitBuffer);
+}
+
 // Clear the comms channel
 
 FORCE_INLINE void clearSlaveChannel()

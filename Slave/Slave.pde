@@ -92,7 +92,7 @@ void setup()
     pinMode(steps[i], OUTPUT);
     pinMode(dirs[i], OUTPUT);
     pinMode(enables[i], OUTPUT);
-    enable(i);
+    disable(i);
     setDirection(i, FORWARDS);
   }
   currentDrive = NO_DRIVE;
@@ -316,7 +316,6 @@ void command()
       drive = buf[1]-'0';
       if(drive == currentDrive)
         return;
-      //disable(currentDrive);
       currentDrive = drive;
       enable(currentDrive);
       debugMessage("Drive set to: ", currentDrive);
@@ -360,6 +359,18 @@ void command()
       stop();
       break;
       
+    case MOTOR:
+      drive = buf[1]-'0';
+      enable(drive);
+      debugMessage("Drive turned on: ", drive);
+      break;    
+      
+    case NO_MOTOR:
+      drive = buf[1]-'0';
+      disable(drive);
+      debugMessage("Drive turned off: ", drive);
+      break;
+
     case NO_OP:
     case 0:
       break;

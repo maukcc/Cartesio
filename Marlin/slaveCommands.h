@@ -23,6 +23,8 @@
 #define SET_DDA 'D'    // Set DDA parameters from head of queue
 #define DEBUG 'W'      // Debugging on/off
 #define STOP 'S'       // Shut down everything
+#define MOTOR 'M'      // Turn on motor
+#define NO_MOTOR 'm'   // Turn off motor
 #define NO_OP 'N'      // Do nothing
 #define H_TEST 'A'     // Heater test
 #define DRIVE 'd'      // Set current drive
