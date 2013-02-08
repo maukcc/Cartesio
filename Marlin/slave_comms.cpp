@@ -8,7 +8,7 @@ char slaveXmitBuffer[SLAVE_BUF];
 char slaveRcvBuffer[SLAVE_BUF];
 bool setDir[EXTRUDERS];
 bool firstTalk;
-long timeout;
+unsigned long timeout;
 
 void setup_slave()
 {

@@ -34,8 +34,8 @@
 #define ENABLE 0
 #define DISABLE 1
 
-#define FORWARDS 1
-#define BACKWARDS 0
+#define FORWARDS 0
+#define BACKWARDS 1
 
 #define STEPS   { 15, 22, 3, 1 }
 #define DIRS    { 21, 23, 2, 0 }
@@ -87,7 +87,7 @@
 
 // PID constants
 
-#define TEMP_INTERVAL 500  // check temperature this many milliseconds
+#define TEMP_INTERVAL 500ul  // check temperature this many milliseconds
 #define PID_MAX 255 // limits current to nozzle
 #define KP { 0.01,  0.01 } //8
 #define KI { 0.0032, 0.0035 }

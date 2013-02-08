@@ -215,6 +215,7 @@ const int sensitive_pins[] = SENSITIVE_PINS; // Sensitive pin list for M42
 static unsigned long previous_millis_cmd = 0;
 static unsigned long max_inactive_time = 0;
 static unsigned long stepper_inactive_time = DEFAULT_STEPPER_DEACTIVE_TIME*1000l;
+static unsigned long inactivity_time = 0;
 
 static unsigned long starttime=0;
 static unsigned long stoptime=0;
@@ -618,6 +619,7 @@ bool code_seen(char code)
     endstops_hit_on_purpose();\
   }
 
+/*
 inline uint8_t check_all_temps(uint8_t goodCount)
 {
   boolean ok = true;
@@ -648,18 +650,55 @@ inline uint8_t check_all_temps(uint8_t goodCount)
     goodCount = 0;
   return goodCount;  
 }
+*/
 
 inline void wait_for_all_extruder_temps()
 {
+  float targets[EXTRUDERS];
+  boolean ok;
+  float temp;
+  uint8_t e;
+  for(e = 0; e < EXTRUDERS; e++)
+  {
+     targets[e] = degTargetHotend(e);
+     delay(10);     // Yuk!
+  }
+    
   long oldTime = millis();
   dudTempCount = 0;
-  uint8_t goodCount = check_all_temps(0);
+  uint8_t goodCount = 0;
   while(goodCount < 3)
   {
     if(millis() - oldTime >= 500L)
     {
       oldTime = millis();
-      goodCount = check_all_temps(goodCount);
+      ok = true;
+      for(e = 0; e < EXTRUDERS; e++)
+      {
+        temp = degHotend(e);
+#ifndef BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
+        if(temp > HEATER_MAXTEMP || temp < HEATER_MINTEMP)
+        {
+          dudTempCount++;
+          if(dudTempCount > 2) // Don't bother with the odd dud reading, but if we get three in a row kill it
+            Stop();
+        } else
+          dudTempCount = 0;
+#endif
+        if(targets[e] > 30 && abs(temp - targets[e]) > TEMP_HYSTERESIS)  // 30 is because we don't care about cold temps.
+          ok = false;
+        SERIAL_PROTOCOLPGM("  T");
+        SERIAL_PROTOCOL( (int)e );
+        SERIAL_PROTOCOLPGM(": ");
+        SERIAL_PROTOCOL_F(temp,1);
+        SERIAL_PROTOCOLPGM("/");
+        SERIAL_PROTOCOL( (int)targets[e]);
+      }
+      SERIAL_PROTOCOLLN("");
+      if(ok)
+        goodCount++;
+      else
+        goodCount = 0;
     }
     manage_heater();
     manage_inactivity(1);
@@ -672,6 +711,9 @@ inline void wait_for_all_extruder_temps()
   
 void wait_for_temp(uint8_t& t_ext, unsigned long& codenum)
 {
+#ifdef REPRAPPRO_MULTIMATERIALS
+  wait_for_all_extruder_temps();
+#else
         /* See if we are heating up or cooling down */
       bool target_direction = isHeatingHotend(t_ext); // true if heating, false if cooling
 
@@ -726,6 +768,7 @@ void wait_for_temp(uint8_t& t_ext, unsigned long& codenum)
         LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
         starttime=millis();
         previous_millis_cmd = millis();
+#endif
 }
   
 
@@ -1173,7 +1216,8 @@ void process_commands()
           if(code_seen('Y')) disable_y();
           if(code_seen('Z')) disable_z();
           #if ((E0_ENABLE_PIN != X_ENABLE_PIN) && (E1_ENABLE_PIN != Y_ENABLE_PIN)) // Only enable on boards that have seperate ENABLE_PINS
-            if(code_seen('E')) {
+            if(code_seen('E')) 
+            {
               disable_e0();
               disable_e1();
               disable_e2();
@@ -1427,17 +1471,17 @@ void process_commands()
     }
     break;
 #ifdef REPRAPPRO_MULTIMATERIALS    
-    case 555: // Slave heater test - heater 0
-      talkToSlave("A0");
+    case 555: // Slave heater test - extruder 1
+      slaveHeatTest(1);
       break;
-    case 556:  // Slave heater test - heater 1
-      talkToSlave("A1");
+    case 556:  // Slave heater test - extruder 2
+      slaveHeatTest(2);
       break;
     case 557:
-      talkToSlave("W1"); // slave debugging on
+      slaveDebug(true); // slave debugging on
       break;
     case 558:
-      talkToSlave("W0"); // slave debugging off
+      slaveDebug(false); // slave debugging off
       break;      
 #endif
     }
@@ -1462,8 +1506,13 @@ void process_commands()
       {
          extruder_selected = true;
          
-         setTargetHotend(extruder_standby[active_extruder], active_extruder);
-         setTargetHotend(extruder_temperature[tmp_extruder], tmp_extruder);
+         for(int8_t i = 0; i < EXTRUDERS; i++)
+         {
+           if(i == tmp_extruder)
+             setTargetHotend(extruder_temperature[i], i);
+           else
+             setTargetHotend(extruder_standby[i], i);
+         }
          codenum = millis();
          wait_for_all_extruder_temps(); 
          
@@ -1661,11 +1710,17 @@ void controllerFan()
 }
 #endif
 
+// This is called in a tight loop.  No need for that; once every five seconds should do - AB
+
 void manage_inactivity(byte debug) 
 { 
+  if((long)(inactivity_time - millis()) > 0)
+    return;
+  inactivity_time += 5000ul;
+ 
   if( (millis() - previous_millis_cmd) >  max_inactive_time ) 
     if(max_inactive_time) 
-      kill(); 
+      Stop(); 
   if(stepper_inactive_time)  {
     if( (millis() - previous_millis_cmd) >  stepper_inactive_time ) 
     {
@@ -1685,6 +1740,8 @@ void manage_inactivity(byte debug)
   check_axes_activity();
 }
 
+// Absolute shutdown and die
+
 void kill()
 {
   cli(); // Stop interrupts
@@ -1697,7 +1754,7 @@ void kill()
   disable_e1();
   disable_e2();
 #ifdef REPRAPPRO_MULTIMATERIALS
-  talkToSlave("S");
+  stopSlave();
 #endif  
   SERIAL_ERROR_START;
   SERIAL_ERRORLNPGM(MSG_ERR_KILLED);
@@ -1705,6 +1762,8 @@ void kill()
   suicide();
   while(1); // Wait for reset
 }
+
+// Shutdown nicely when told to do so
 
 void shutDown()
 {
@@ -1717,9 +1776,11 @@ void shutDown()
   disable_e1();
   disable_e2();  
 #ifdef REPRAPPRO_MULTIMATERIALS
-  talkToSlave("S");
+  stopSlave();
 #endif
 }
+
+// Error shutdown
 
 void Stop()
 {
@@ -1732,7 +1793,7 @@ void Stop()
     LCD_MESSAGEPGM(MSG_STOPPED);
   }
 #ifdef REPRAPPRO_MULTIMATERIALS
-  talkToSlave("S");
+  stopSlave();
 #endif
 }
 

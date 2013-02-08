@@ -185,11 +185,11 @@
 #ifndef DEVELOPING
 //this prevents dangerous Extruder moves, i.e. if the temperature is under the limit
 //can be software-disabled for whatever purposes by
-#define PREVENT_DANGEROUS_EXTRUDE
-#define EXTRUDE_MINTEMP 170
-#define EXTRUDE_MAXLENGTH (X_MAX_LENGTH+Y_MAX_LENGTH) //prevent extrusion of very large distances.
+ #define PREVENT_DANGEROUS_EXTRUDE
+ #define EXTRUDE_MINTEMP 170
+ #define EXTRUDE_MAXLENGTH (X_MAX_LENGTH+Y_MAX_LENGTH) //prevent extrusion of very large distances.
 #else
-#define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
+ #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 #endif
 
 //===========================================================================

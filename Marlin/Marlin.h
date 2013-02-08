@@ -150,37 +150,43 @@ void manage_inactivity(byte debug);
   #define disable_z() ;
 #endif
 
-#if defined(E0_ENABLE_PIN) && (E0_ENABLE_PIN > -1)
+       
+#ifdef REPRAPPRO_MULTIMATERIALS
+ #define enable_e0() WRITE(E0_ENABLE_PIN, E_ENABLE_ON)
+ #define disable_e0() WRITE(E0_ENABLE_PIN,!E_ENABLE_ON)
+ #define disable_e1() slaveDriveOff(1)
+ #define disable_e2() slaveDriveOff(2)
+ #define enable_e1() slaveDriveOn(1)
+ #define enable_e2() slaveDriveOn(2)
+#else
+
+ #if defined(E0_ENABLE_PIN) && (E0_ENABLE_PIN > -1)
   #define enable_e0() WRITE(E0_ENABLE_PIN, E_ENABLE_ON)
   #define disable_e0() WRITE(E0_ENABLE_PIN,!E_ENABLE_ON)
-#else
+ #else
   #define enable_e0()  /* nothing */
   #define disable_e0() /* nothing */
-#endif
+ #endif
 
-#if (EXTRUDERS > 1) && defined(E1_ENABLE_PIN) && (E1_ENABLE_PIN > -1)
+ #if (EXTRUDERS > 1) && defined(E1_ENABLE_PIN) && (E1_ENABLE_PIN > -1)
   #define enable_e1() WRITE(E1_ENABLE_PIN, E_ENABLE_ON)
   #define disable_e1() WRITE(E1_ENABLE_PIN,!E_ENABLE_ON)
-#else
+ #else
   #define enable_e1()  /* nothing */
   #define disable_e1() /* nothing */
-#endif
+ #endif
 
-#if (EXTRUDERS > 2) && defined(E2_ENABLE_PIN) && (E2_ENABLE_PIN > -1)
+ #if (EXTRUDERS > 2) && defined(E2_ENABLE_PIN) && (E2_ENABLE_PIN > -1)
   #define enable_e2() WRITE(E2_ENABLE_PIN, E_ENABLE_ON)
   #define disable_e2() WRITE(E2_ENABLE_PIN,!E_ENABLE_ON)
-#else
+ #else
   #define enable_e2()  /* nothing */
   #define disable_e2() /* nothing */
+ #endif
+
 #endif
 
 
-#ifdef REPRAPPRO_MULTIMATERIALS
-#define disable_e1() slaveDriveOff(1)
-#define disable_e2() slaveDriveOff(2)
-#define enable_e1() slaveDriveOn(1)
-#define enable_e2() slaveDriveOn(2)
-#endif
 
 
 enum AxisEnum {X_AXIS=0, Y_AXIS=1, Z_AXIS=2, E_AXIS=3};

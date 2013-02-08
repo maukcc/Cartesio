@@ -10,7 +10,7 @@
 
 #include "slaveCommands.h"
 
-#define TIMEOUT 4 // ms - empirically set with reliability test (2 ms works, 1 doesn't...)
+#define TIMEOUT 6 // ms - empirically set with reliability test (2 ms works, 1 doesn't...)
 #define SLAVE_BUF 64
 #define SLAVE_BAUD 250000
 
@@ -18,7 +18,7 @@ extern char slaveXmitBuffer[];
 extern char slaveRcvBuffer[];
 extern bool setDir[];
 extern bool firstTalk;
-extern long timeout;
+extern unsigned long timeout;
 
 
 float slaveDegHotend(uint8_t heater);
@@ -26,8 +26,8 @@ void slaveSetTargetHotend(const float &celsius, uint8_t heater);
 float slaveDegTargetHotend(uint8_t heater);
 bool slaveIsHeatingHotend(uint8_t heater);
 bool slaveIsCoolingHotend(uint8_t heater);
-void slaveStep(int8_t drive, int8_t v);
-void slaveDir(int8_t drive, bool forward);
+void slaveStep(uint8_t drive, uint8_t v);
+void slaveDir(uint8_t drive, boolean forward);
 void clearSlaveChannel();
 void talkToSlave(char s[]);
 char* listenToSlave();
@@ -41,7 +41,9 @@ FORCE_INLINE float getFloatFromSlave(uint8_t device, char command)
 	talkToSlave(slaveXmitBuffer);
 	listenToSlave();
         //Serial.print(slaveRcvBuffer);Serial.print(" **");
-	return atof(slaveRcvBuffer); 
+	float r = atof(slaveRcvBuffer);
+        slaveRcvBuffer[0] = 0; // Clear to avoid confusion
+        return r;
 }
 
 
@@ -73,15 +75,24 @@ FORCE_INLINE bool  slaveIsCoolingHotend(uint8_t heater)
 	return !slaveIsHeatingHotend(heater) ; 
 }
 
+FORCE_INLINE void slaveHeatTest(uint8_t heater)
+{
+	slaveXmitBuffer[0] = H_TEST;
+	slaveXmitBuffer[1] = '0' + heater - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+	slaveXmitBuffer[2] = 0;
+	talkToSlave(slaveXmitBuffer);
+}
+
+
 
 // NB this assumes the drive has already been selected
-FORCE_INLINE void slaveStep(int8_t drive, int8_t v)
+FORCE_INLINE void slaveStep(uint8_t drive, uint8_t v)
 {
 	if(v) return; // Slave clocks on every change
 	digitalWrite(SLAVE_CLOCK, !digitalRead(SLAVE_CLOCK));
 }
 
-FORCE_INLINE void slaveDir(int8_t drive, bool forward)
+FORCE_INLINE void slaveDir(uint8_t drive, boolean forward)
 {
 	if(forward)
         {
@@ -99,7 +110,7 @@ FORCE_INLINE void slaveDir(int8_t drive, bool forward)
         delay(1); // Give it a moment
 }
 
-FORCE_INLINE void slaveDrive(int8_t drive)
+FORCE_INLINE void slaveDrive(uint8_t drive)
 {
 	slaveXmitBuffer[0] = DRIVE;
 	slaveXmitBuffer[1] = '0' + drive - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
@@ -107,7 +118,7 @@ FORCE_INLINE void slaveDrive(int8_t drive)
 	talkToSlave(slaveXmitBuffer);
 }
 
-FORCE_INLINE void slaveDriveOff(int8_t drive)
+FORCE_INLINE void slaveDriveOff(uint8_t drive)
 {
 	slaveXmitBuffer[0] = NO_MOTOR;
 	slaveXmitBuffer[1] = '0' + drive - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
@@ -115,13 +126,33 @@ FORCE_INLINE void slaveDriveOff(int8_t drive)
 	talkToSlave(slaveXmitBuffer);
 }
 
-FORCE_INLINE void slaveDriveOn(int8_t drive)
+FORCE_INLINE void slaveDriveOn(uint8_t drive)
 {
 	slaveXmitBuffer[0] = MOTOR;
 	slaveXmitBuffer[1] = '0' + drive - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
 	slaveXmitBuffer[2] = 0;
 	talkToSlave(slaveXmitBuffer);
 }
+
+
+FORCE_INLINE void stopSlave()
+{
+	slaveXmitBuffer[0] = STOP;
+	slaveXmitBuffer[1] = 0;
+	talkToSlave(slaveXmitBuffer);
+}
+
+FORCE_INLINE void slaveDebug(boolean b)
+{
+	slaveXmitBuffer[0] = DEBUG;
+        if(b)
+	  slaveXmitBuffer[1] = '1';
+        else
+          slaveXmitBuffer[1] = '0';
+        slaveXmitBuffer[2] = 0;
+	talkToSlave(slaveXmitBuffer);
+}
+
 
 // Clear the comms channel
 
@@ -153,23 +184,21 @@ FORCE_INLINE void talkToSlave(char s[])
 FORCE_INLINE char* listenToSlave() 
 {
 	int c = 0;
-	timeout = millis();
-	int8_t i = 0;
+	int8_t i = -1;
+        timeout = millis();
 	while(c != '\n' && (millis() - timeout < TIMEOUT))
 	{
+                i++;
+                slaveRcvBuffer[i] = 0;
 		while(!MYSERIAL1.available())
                 {
                   if (millis() - timeout > TIMEOUT)
-                  {
-                    slaveRcvBuffer[0] = 0;
                     return slaveRcvBuffer;
-                  }
                 }
 		c = MYSERIAL1.read();
 		slaveRcvBuffer[i] = (char)c;
-		i++;
 	}
-	slaveRcvBuffer[i-1] = 0;
+	slaveRcvBuffer[i] = 0;
 	return slaveRcvBuffer;
 }
 

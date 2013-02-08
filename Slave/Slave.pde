@@ -49,6 +49,7 @@ volatile int8_t currentDrive = NO_DRIVE;
 // Heater arrays
 
 float setTemps[HOT_ENDS];
+int intSetTemps[HOT_ENDS];
 int currentTemps[HOT_ENDS];
 
 // PID variables
@@ -131,7 +132,7 @@ inline char* strplus(char* a, char* b)
 
 inline void error(char* s)
 {
-  DEBUG_IO.println(s);
+  DEBUG_IO.println(strplus("ERROR: ", s));
 }
 
 void stop()
@@ -145,12 +146,6 @@ void stop()
     setTemperature(i, 0); 
 }
 
-/* **********************************************************************
-
-   Heaters and temperature
-*/
-
-
 inline void debugMessage(char* s, int i)
 {
   if(!debug)
@@ -159,11 +154,29 @@ inline void debugMessage(char* s, int i)
   DEBUG_IO.println(i); 
 }
 
+inline void debugMessage(char* s1, int i1, char* s2, int i2)
+{
+  if(!debug)
+   return;
+  DEBUG_IO.print(s1);
+  DEBUG_IO.print(i1);
+  DEBUG_IO.print(s2);
+  DEBUG_IO.println(i2);  
+}
+
+/* **********************************************************************
+
+   Heaters and temperature
+*/
+
+
 inline void setTemperature(int8_t heater, int t)
 {
   if(heater < 0 || heater >= HOT_ENDS)
     return;
   setTemps[heater]=t;
+  intSetTemps[heater]=(int)t;
+  
 }
 
 
@@ -227,13 +240,14 @@ void heatControl()
 
 inline void tempCheck()
 {
-  if( (long)(millis() - time) < 0)
+  
+  if((long)(time - millis()) > 0)
     return;
+  time += TEMP_INTERVAL;
     
   if(LED_PIN >= 0)
     digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-    
-  time += TEMP_INTERVAL;
+
   heatControl();
 }
 
@@ -291,44 +305,43 @@ void heaterTest(int8_t h)
 
 void command()
 {
-  int8_t drive;
+  uint8_t dh = buf[1]-'0';
   switch(buf[0])
   {
     case '\n':
       break;
       
     case GET_T: // Get temperature of an extruder
-      MASTER.println(currentTemps[buf[1]-'0']);
-      debugMessage("Sent temp: ", currentTemps[buf[1]-'0']);
+      MASTER.println(currentTemps[dh]);
+      debugMessage("Sent temp: ", currentTemps[dh], " for extruder ", dh);
       break;
       
     case GET_TT: // Get target temperature of an extruder
-      MASTER.println((int)getTargetTemperature(buf[1]-'0'));
-      debugMessage("Sent target temp: ", (int)getTargetTemperature(buf[1]-'0'));
+      MASTER.println(intSetTemps[dh]);
+      debugMessage("Sent target temp: ", intSetTemps[dh], " for extruder ", dh);
       break;      
     
     case SET_T: // Set temperature of an extruder
-      setTemperature(buf[1]-'0', atoi(&buf[2]));
-      debugMessage("Set target temp to: ", (int)getTargetTemperature(buf[1]-'0'));
+      setTemperature(dh, atoi(&buf[2]));
+      debugMessage("Set target temp to: ", int)SetTemps[dh], " for extruder ", dh);
       break;
       
     case DRIVE:  // Set the current drive
-      drive = buf[1]-'0';
-      if(drive == currentDrive)
+      if(dh == currentDrive)
         return;
-      currentDrive = drive;
+      currentDrive = dh;
       enable(currentDrive);
       debugMessage("Drive set to: ", currentDrive);
       break;
       
     case DIR_F:  // Set an extruder's direction forwards
-      setDirection(buf[1]-'0', FORWARDS);
-      debugMessage("Forwards set for: ", buf[1]-'0');
+      setDirection(dh, FORWARDS);
+      debugMessage("Forwards set for: ", dh);
       break;
     
     case DIR_B:   // Set an extruder's direction backwards
-      setDirection(buf[1]-'0', BACKWARDS);
-      debugMessage("Backwards set for: ", buf[1]-'0');
+      setDirection(dh, BACKWARDS);
+      debugMessage("Backwards set for: ", dh);
       break;
     
     case SET_PID: // Set PID parameters
@@ -345,7 +358,7 @@ void command()
         break;
         
     case DEBUG:
-      debug = buf[1]-'0';
+      debug = dh;
       debugMessage("Debug set to: ", debug);
       break;
     
@@ -360,15 +373,13 @@ void command()
       break;
       
     case MOTOR:
-      drive = buf[1]-'0';
-      enable(drive);
-      debugMessage("Drive turned on: ", drive);
+      enable(dh);
+      debugMessage("Drive turned on: ", dh);
       break;    
       
     case NO_MOTOR:
-      drive = buf[1]-'0';
-      disable(drive);
-      debugMessage("Drive turned off: ", drive);
+      disable(dh);
+      debugMessage("Drive turned off: ", dh);
       break;
 
     case NO_OP:
@@ -376,7 +387,7 @@ void command()
       break;
       
     case H_TEST:
-      heaterTest(buf[1]-'0');
+      heaterTest(dh);
       break;
       
     default:
