@@ -6,8 +6,9 @@
 
 char slaveXmitBuffer[SLAVE_BUF];
 char slaveRcvBuffer[SLAVE_BUF];
-bool setDir[EXTRUDERS];
-bool firstTalk;
+boolean setDir[EXTRUDERS];
+boolean firstTalk;
+boolean driveOn[EXTRUDERS];
 unsigned long timeout;
 
 void setup_slave()
@@ -16,7 +17,10 @@ void setup_slave()
 	SET_OUTPUT(SLAVE_CLOCK);
         firstTalk = true;
         for(int i = 0; i < EXTRUDERS; i++)
+        {
           setDir[i] = true;
+          driveOn[i] = false;
+        }
 }
 
 #endif

@@ -137,13 +137,13 @@ inline void error(char* s)
 
 void stop()
 {
-  if(debug)
-    DEBUG_IO.println("Stopped");
   int8_t i;
   for(i = 0; i < DRIVES; i++)
     disable(i);
   for(i = 0; i < HOT_ENDS; i++)
     setTemperature(i, 0); 
+  if(debug)
+    DEBUG_IO.println("Stopped");
 }
 
 inline void debugMessage(char* s, int i)
@@ -323,7 +323,7 @@ void command()
     
     case SET_T: // Set temperature of an extruder
       setTemperature(dh, atoi(&buf[2]));
-      debugMessage("Set target temp to: ", int)SetTemps[dh], " for extruder ", dh);
+      debugMessage("Set target temp to: ", intSetTemps[dh], " for extruder ", dh);
       break;
       
     case DRIVE:  // Set the current drive
