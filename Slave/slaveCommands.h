@@ -15,6 +15,9 @@
 
 // Commands for communication between the master and slave
 
+#define BEGIN_C ':'
+#define END_C '\n'
+
 #define GET_T 't'      // Get temperature
 #define GET_TT 's'     // Get target temperature
 #define SET_T 'T'      // Set temperature

@@ -19,6 +19,7 @@ extern char slaveRcvBuffer[];
 extern boolean setDir[];
 extern boolean driveOn[];
 extern boolean firstTalk;
+extern boolean inSlaveMessage;
 extern unsigned long timeout;
 
 
@@ -164,46 +165,73 @@ FORCE_INLINE void slaveDebug(boolean b)
 FORCE_INLINE void clearSlaveChannel()
 {
   firstTalk = false;
-  MYSERIAL1.print("\n\n\n\n"); 
-  int c = 0;
-  timeout = millis();
-  while((millis() - timeout < TIMEOUT))
+  for(uint8_t i = 0; i < 10; i++)
   {
-	while(!MYSERIAL1.available())
-        {
-           if (millis() - timeout > TIMEOUT)
-             return;
-        }
-        c = MYSERIAL1.read();
-  }  
+    delay(1);
+    MYSERIAL1.print(END_C);
+  }
+  listenToSlave(); // Clear junk from input
 }
 
 FORCE_INLINE void talkToSlave(char s[]) 
-{ 
+{
   if(firstTalk)
     clearSlaveChannel();
-  MYSERIAL1.println(s); 
+  MYSERIAL1.print(BEGIN_C);
+  MYSERIAL1.print(s);
+  MYSERIAL1.print(END_C); 
 }
 
 
 FORCE_INLINE char* listenToSlave() 
 {
-	int c = 0;
-	int8_t i = -1;
+	char c = 0;
+	int8_t bp = 0;
         timeout = millis();
-	while(c != '\n' && (millis() - timeout < TIMEOUT))
+        inSlaveMessage = false;
+	while(c != END_C && (millis() - timeout < TIMEOUT))
 	{
-                i++;
-                slaveRcvBuffer[i] = 0;
-		while(!MYSERIAL1.available())
-                {
-                  if (millis() - timeout > TIMEOUT)
-                    return slaveRcvBuffer;
-                }
-		c = MYSERIAL1.read();
-		slaveRcvBuffer[i] = (char)c;
+          if(MYSERIAL1.available())
+          {
+            c = MYSERIAL1.read();
+            switch(c)
+            {
+            case BEGIN_C:
+               bp = 0;
+               slaveRcvBuffer[0] = 0;
+               inSlaveMessage = true;
+               break;
+       
+            case END_C:
+               if(inSlaveMessage)
+               {
+                 slaveRcvBuffer[bp] = 0;
+                 bp = 0;
+                 inSlaveMessage = false;
+                 return slaveRcvBuffer;
+               }
+               break;
+        
+            default:
+               if(inSlaveMessage)
+               {
+                 slaveRcvBuffer[bp] = c;
+                 bp++;
+               }
+            }
+            
+            if(bp >= SLAVE_BUF)
+            {
+              bp = SLAVE_BUF-1;
+              slaveRcvBuffer[bp] = 0;
+              SERIAL_PROTOCOLPGM("slave receive buffer overflow: ");
+              SERIAL_PROTOCOLLN(slaveRcvBuffer);
+              slaveRcvBuffer[0] = 0;
+              bp = 0;
+            }
+          }
 	}
-	slaveRcvBuffer[i] = 0;
+	slaveRcvBuffer[bp] = 0;
 	return slaveRcvBuffer;
 }
 

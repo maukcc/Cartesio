@@ -1068,9 +1068,11 @@ void process_commands()
      break;
     case 104: // M104
       tmp_extruder = active_extruder;
-      if(code_seen('T')) {                     // Why is this T and not S? - AB
+      if(code_seen('T')) 
+      {                     
         tmp_extruder = code_value();
-        if(tmp_extruder >= EXTRUDERS) {
+        if(tmp_extruder >= EXTRUDERS) 
+        {
           SERIAL_ECHO_START;
           SERIAL_ECHO(MSG_M104_INVALID_EXTRUDER);
           SERIAL_ECHOLN(tmp_extruder);
@@ -1080,7 +1082,7 @@ void process_commands()
       if (code_seen('S'))
       {
          extruder_temperature[tmp_extruder] = code_value();
-         setTargetHotend(code_value(), tmp_extruder);
+         setTargetHotend(extruder_temperature[tmp_extruder], tmp_extruder);
       }
       
       break;
@@ -1088,6 +1090,29 @@ void process_commands()
       if (code_seen('S')) setTargetBed(code_value());
       break;
     case 105 : // M105
+#ifdef REPRAPPRO_MULTIMATERIALS
+      SERIAL_PROTOCOLPGM("ok");
+      for(int e = 0; e < EXTRUDERS; e++)
+      {
+        SERIAL_PROTOCOLPGM(" T");
+        SERIAL_PROTOCOL(e);
+        SERIAL_PROTOCOLPGM(": ");
+        SERIAL_PROTOCOL_F(degHotend(e),1);
+        SERIAL_PROTOCOLPGM("/");
+        SERIAL_PROTOCOL_F(degTargetHotend(e),1);
+      }
+      #if TEMP_BED_PIN > -1
+          SERIAL_PROTOCOLPGM(" B:");  
+          SERIAL_PROTOCOL_F(degBed(),1);
+          SERIAL_PROTOCOLPGM(" /");
+          SERIAL_PROTOCOL_F(degTargetBed(),1);
+      #endif //TEMP_BED_PIN  
+      #ifdef PIDTEMP
+        SERIAL_PROTOCOLPGM(" @:");
+        SERIAL_PROTOCOL(getHeaterPower(tmp_extruder));  
+      #endif    
+      SERIAL_PROTOCOLLN(""); 
+#else     
       tmp_extruder = active_extruder;
       if(code_seen('T')) {
         tmp_extruder = code_value();
@@ -1118,6 +1143,7 @@ void process_commands()
         SERIAL_PROTOCOL(getHeaterPower(tmp_extruder));  
       #endif
         SERIAL_PROTOCOLLN("");
+#endif
       return;
       break;
     case 109: 
@@ -1137,7 +1163,7 @@ void process_commands()
       if (code_seen('S'))
       {
         extruder_temperature[tmp_extruder] = code_value();
-        setTargetHotend(code_value(), tmp_extruder);
+        setTargetHotend(extruder_temperature[tmp_extruder], tmp_extruder);
       }
       
       

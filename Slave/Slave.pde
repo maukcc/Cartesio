@@ -12,7 +12,7 @@
 
 char* strplus(char* a, char* b);
 void error(char* s);
-void stop();
+void stopSlave();
 void setTemperature(int8_t heater, int t);
 int getRawTemperature(int8_t heater);
 float getTemperature(int8_t heater);
@@ -27,6 +27,7 @@ void configureInterrupt();
 void setDirection(int8_t drive, bool forward);
 void enable(int8_t drive);
 void disable(int8_t drive);
+void clearMasterChannel();
 
 #include "Slave_Configuration.h"
 
@@ -35,6 +36,7 @@ char buf[BUFLEN];
 char scratch[2*BUFLEN];
 int bp;
 boolean debug;
+boolean inMessage;
 
 // Pin arrays
 
@@ -81,9 +83,10 @@ ISR ( PCINT2_vect )
 
 void setup() 
 {
+  inMessage = false;
   int8_t i;
   DEBUG_IO.begin(DEBUG_BAUD);
-  DEBUG_IO.println("RepRapPro slave controller restarted.");
+  DEBUG_IO.println("\nRepRapPro slave controller restarted.");
   debug = false;
   MASTER.begin(BAUD); 
   bp = 0;
@@ -123,6 +126,7 @@ void setup()
   digitalWrite(INTERRUPT_PIN, HIGH); // Set pullup
   interrupts();
   time = millis() + TEMP_INTERVAL;
+  clearMasterChannel();
 }
 
 inline char* strplus(char* a, char* b)
@@ -136,7 +140,7 @@ inline void error(char* s)
   DEBUG_IO.println(strplus("ERROR: ", s));
 }
 
-void stop()
+void stopSlave()
 {
   int8_t i;
   for(i = 0; i < DRIVES; i++)
@@ -163,6 +167,61 @@ inline void debugMessage(char* s1, int i1, char* s2, int i2)
   DEBUG_IO.print(i1);
   DEBUG_IO.print(s2);
   DEBUG_IO.println(i2);  
+}
+
+inline void talkToMaster(int i)
+{
+  MASTER.print(BEGIN_C);
+  MASTER.print(i);
+  MASTER.print(END_C);
+}
+
+
+inline void incomming()
+{ 
+    if(!MASTER.available())
+      return;
+    
+    char c = (char)MASTER.read();
+    switch(c)
+    {
+    case BEGIN_C:
+       bp = 0;
+       buf[0] = 0;
+       inMessage = true;
+       break;
+       
+    case END_C:
+       if(inMessage)
+       {
+         buf[bp] = 0;
+         bp = 0;
+         inMessage = false;
+         command();
+         return;
+       }
+       break;
+        
+    default:
+       if(inMessage)
+       {
+         buf[bp] = c;
+         bp++;
+       }
+    }
+       
+    if(bp >= BUFLEN)
+    {
+      bp = BUFLEN-1;
+      buf[bp] = 0;
+      error(strplus("command overflow: ", buf));
+    } 
+}
+
+void clearMasterChannel()
+{
+  for(uint8_t i = 0; i < 10; i++)
+    MASTER.print(END_C);
 }
 
 /* **********************************************************************
@@ -337,6 +396,9 @@ void heaterTest(int8_t h)
 
 void command()
 {
+  if(!buf[0])
+    return;
+    
   uint8_t dh = buf[1]-'0';
   switch(buf[0])
   {
@@ -344,12 +406,12 @@ void command()
       break;
       
     case GET_T: // Get temperature of an extruder
-      MASTER.println(currentTemps[dh]);
+      talkToMaster(currentTemps[dh]);
       debugMessage("Sent temp: ", currentTemps[dh], " for extruder ", dh);
       break;
       
     case GET_TT: // Get target temperature of an extruder
-      MASTER.println(intSetTemps[dh]);
+      talkToMaster(intSetTemps[dh]);
       debugMessage("Sent target temp: ", intSetTemps[dh], " for extruder ", dh);
       break;      
     
@@ -401,7 +463,7 @@ void command()
       break;
     
     case STOP: // Shut everything down; carry on listening for commands
-      stop();
+      stopSlave();
       break;
       
     case MOTOR:
@@ -428,25 +490,7 @@ void command()
   }
 }
 
-inline void incomming()
-{
-  if(MASTER.available())
-  {
-    buf[bp] = (char)MASTER.read();
-    if(buf[bp] == '\n')
-    {
-       buf[bp] = 0;
-       command();
-       bp = 0;
-    } else
-       bp++;
-    if(bp >= BUFLEN)
-    {
-      bp = BUFLEN-1;
-      error(strplus("command overflow: ", buf));
-    }
-  }  
-}
+
 
 
 void loop() 
