@@ -205,13 +205,15 @@ int getHeaterPower(int heater) {
   return soft_pwm[heater];
 }
 
+
 void manage_heater()
-{  
+{
+
   float pid_input;
   float pid_output;
 
   if(temp_meas_ready != true)   //better readability
-    return; 
+    return;
 
   CRITICAL_SECTION_START;
   temp_meas_ready = false;

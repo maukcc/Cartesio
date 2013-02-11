@@ -18,7 +18,7 @@
 
 /*
  This firmware is a mashup between Sprinter and grbl.
-  (https://github.com/kliment/Sprinter)
+  (https://github.com/kliment/Sprinter)manage
   (https://github.com/simen/grbl/tree)
  
  It has preliminary support for Matthew Roberts advance algorithm 

@@ -87,12 +87,23 @@
 
 // PID constants
 
-#define TEMP_INTERVAL 500ul  // check temperature this many milliseconds
+//#define TEMP_INTERVAL 500ul  // check temperature this many milliseconds
+#define TEMP_INTERVAL 122ul  // check temperature this many milliseconds
 #define PID_MAX 255 // limits current to nozzle
-#define KP { 0.01,  0.01 } //8
-#define KI { 0.0032, 0.0035 }
-#define KD { 0.04, 0.04 }
-#define PID_MAX_MIN { 70, 95 }
+#define FULL_PID_BAND 150.0 // Bang bang when error greater than this
+#define D_MIX 0.95
+//#define KP { 0.01,  0.01 } //8
+//#define KI { 0.0032, 0.0035 }
+//#define KD { 0.04, 0.04 }
+//#define PID_MAX_MIN { 70, 95 }
+#define KPV 12
+#define KIV (2.2*0.001*(float)TEMP_INTERVAL)
+#define KDV (80/(0.001*(float)TEMP_INTERVAL))
+#define KP { KPV,  KPV }
+#define KI { KIV, KIV }
+#define KD { KDV, KDV }
+#define PID_I_MAX (125.0/KIV)
+#define PID_I_MIN 0.0
 
 #define TEST_POWER 0.25
 #define TEST_INTERVAL 1

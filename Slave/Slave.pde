@@ -54,12 +54,12 @@ int currentTemps[HOT_ENDS];
 
 // PID variables
 
-float temp_iState_max_min[HOT_ENDS] = PID_MAX_MIN;
 float Kp[HOT_ENDS] = KP;
 float Ki[HOT_ENDS] = KI;
 float Kd[HOT_ENDS] = KD;
 float temp_iState[HOT_ENDS];
 float temp_dState[HOT_ENDS];
+float lastTemp[HOT_ENDS];
 float dt = 0.001*(float)TEMP_INTERVAL;
 
 /* *******************************************************************
@@ -105,6 +105,7 @@ void setup()
     analogWrite(heaters[i], 0);
     temp_iState[i] = 0.0;
     temp_dState[i] = 0.0;
+    lastTemp[i] = 0.0;
     setTemperature(i, 0);
     currentTemps[i] = 0;
   }
@@ -211,7 +212,7 @@ inline float pid(int8_t heater)
    if(heater < 0 || heater >= HOT_ENDS)
      return 0;
   
-   float error, target, current;
+/*   float error, target, current;
    
    target = getTargetTemperature(heater);
    current = getTemperature(heater);   
@@ -229,6 +230,37 @@ inline float pid(int8_t heater)
    if (result > 1) result = 1;
    
    return result;
+*/   
+   float error, target, current;
+   
+   target = getTargetTemperature(heater);
+   current = getTemperature(heater);   
+   error = target - current;
+   if(error < -FULL_PID_BAND)
+   {
+     temp_iState[heater] = 0;
+     return 0;
+   }
+   if(error > FULL_PID_BAND)
+   {
+     temp_iState[heater] = 0;
+     return 1;
+   }  
+   
+   temp_iState[heater] += error;
+   if (temp_iState[heater] < PID_I_MIN) temp_iState[heater] = PID_I_MIN;
+   if (temp_iState[heater] > PID_I_MAX) temp_iState[heater] = PID_I_MAX;
+   
+   temp_dState[heater] =  Kd[heater]*(current - lastTemp[heater])*(1.0 - D_MIX) + D_MIX*temp_dState[heater]; 
+
+   float result = Kp[heater]*error + Ki[heater]*temp_iState[heater] - temp_dState[heater];
+
+   lastTemp[heater] = current;
+
+   if (result < 0) result = 0;
+   if (result > 255.0) result = 255.0;
+   
+   return result/255.0;
 }
 
 
