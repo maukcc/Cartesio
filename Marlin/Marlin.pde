@@ -1772,7 +1772,7 @@ void kill()
 {
   cli(); // Stop interrupts
   disable_heater();
-
+  extruder_selected = false;
   disable_x();
   disable_y();
   disable_z();
@@ -1795,6 +1795,7 @@ void shutDown()
 {
   st_synchronize();
   disable_heater();
+  extruder_selected = false;
   disable_x();
   disable_y();
   disable_z();
@@ -1811,6 +1812,7 @@ void shutDown()
 void Stop()
 {
   disable_heater();
+  extruder_selected = false;
   if(Stopped == false) {
     Stopped = true;
     Stopped_gcode_LastN = gcode_LastN; // Save last g_code for restart
