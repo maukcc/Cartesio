@@ -1565,14 +1565,17 @@ void process_commands()
            destination[Z_AXIS] += z_off_d;
            feedrate = fast_home_feedrate[Z_AXIS];
            prepare_move();
-           destination[X_AXIS] = temp_position[X_AXIS] + x_off_d;
-           destination[Y_AXIS] = temp_position[Y_AXIS] + y_off_d;
+           current_position[Z_AXIS] = temp_position[Z_AXIS];
+           plan_set_position(current_position[X_AXIS] - x_off_d, current_position[Y_AXIS] - y_off_d, current_position[Z_AXIS], current_position[E_AXIS]);  
+           destination[X_AXIS] = temp_position[X_AXIS];
+           destination[Y_AXIS] = temp_position[Y_AXIS];
            feedrate = fast_home_feedrate[X_AXIS];        
            prepare_move();
          } else
          {
-           destination[X_AXIS] += x_off_d;
-           destination[Y_AXIS] += y_off_d;
+           plan_set_position(current_position[X_AXIS] - x_off_d, current_position[Y_AXIS] - y_off_d, current_position[Z_AXIS], current_position[E_AXIS]);  
+           destination[X_AXIS] = temp_position[X_AXIS];
+           destination[Y_AXIS] = temp_position[Y_AXIS];
            feedrate = fast_home_feedrate[X_AXIS];
            prepare_move();
            destination[Z_AXIS] = temp_position[Z_AXIS] + z_off_d;
