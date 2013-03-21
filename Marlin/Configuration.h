@@ -216,12 +216,24 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 #define DISABLE_Z true
 #define DISABLE_E false // For all extruders
 
-#define INVERT_X_DIR true 
-#define INVERT_Y_DIR false
-#define INVERT_Z_DIR false 
-#define INVERT_E0_DIR true 
-#define INVERT_E1_DIR true
-#define INVERT_E2_DIR true 
+#ifdef REPRAPPRO_MENDEL
+#define INVERT_X_DIR true    // for Mendel set to false, for Orca set to true
+#define INVERT_Y_DIR true    // for Mendel set to true, for Orca set to false
+#define INVERT_Z_DIR false     // for Mendel set to false, for Orca set to true
+#define INVERT_E0_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
+#define INVERT_E1_DIR true    // for direct drive extruder v9 set to true, for geared extruder set to false
+#define INVERT_E2_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
+#endif
+
+#ifdef REPRAPPRO_HUXLEY
+#define INVERT_X_DIR true    // for Mendel set to false, for Orca set to true
+#define INVERT_Y_DIR false    // for Mendel set to true, for Orca set to false
+#define INVERT_Z_DIR false     // for Mendel set to false, for Orca set to true
+#define INVERT_E0_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
+#define INVERT_E1_DIR true    // for direct drive extruder v9 set to true, for geared extruder set to false
+#define INVERT_E2_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
+#endif
+
 
 // ENDSTOP SETTINGS:
 // Sets direction of endstops when homing; 1=MAX, -1=MIN
@@ -267,11 +279,7 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 // default settings 
 // X, Y, Z, E steps per mm
-#ifdef REPRAPPRO_MULTIMATERIALS
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 611}   // New RepRapPro extruder with internal gear//929
-#else
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {91.4286, 91.4286, 4000, 875}  // Old RepRapPro extruder
-#endif
+#define DEFAULT_AXIS_STEPS_PER_UNIT    {3200/17/2.032, 3200/17/2.032, 4000, 660}  // Old RepRapPro extruder
 
 
 // Defaults changed by the G10 command
