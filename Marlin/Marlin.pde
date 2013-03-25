@@ -1149,7 +1149,7 @@ void process_commands()
     case 109: 
     // M109 - Wait for extruder heater to reach target.
       tmp_extruder = active_extruder;
-      if(code_seen('T')) {                 // Why is this T and not S? - AB
+      if(code_seen('T')) {                
         tmp_extruder = code_value();
         if(tmp_extruder >= EXTRUDERS) {
           SERIAL_ECHO_START;
@@ -1528,8 +1528,8 @@ void process_commands()
 #endif  
     } else 
     { 
-      if((tmp_extruder != active_extruder) || !extruder_selected)
-      {
+      //if((tmp_extruder != active_extruder) || !extruder_selected)
+      //{
          extruder_selected = true;
          
          for(int8_t i = 0; i < EXTRUDERS; i++)
@@ -1598,7 +1598,7 @@ void process_commands()
          SERIAL_ECHO_START;
          SERIAL_ECHO(MSG_ACTIVE_EXTRUDER);
          SERIAL_PROTOCOLLN((int)active_extruder);
-      }
+    //  }
     }
   }
 
