@@ -114,19 +114,17 @@
 #ifdef REPRAPPRO_MENDEL
 // Bed thermistor: RS 484-0149; EPCOS B57550G103J
 #define BED_BETA 3480.0
-#define BED_RS SERIAL_R
 #define BED_NTC 10000.0
-#define BED_R_INF ( BED_NTC*exp(-BED_BETA/298.15) )
 #endif
 
 #ifdef REPRAPPRO_HUXLEY
 // Bed thermistor: VISHAY BC COMPONENTS - NTCS0603E3104FXT
 #define BED_BETA 4100.0
-#define BED_RS SERIAL_R
 #define BED_NTC 100000.0
-#define BED_R_INF ( BED_NTC*exp(-BED_BETA/298.15) )
 #endif
 
+#define BED_RS SERIAL_R
+#define BED_R_INF ( BED_NTC*exp(-BED_BETA/298.15) )
 
 
 #define BED_USES_THERMISTOR
@@ -138,8 +136,8 @@
 
 // Actual temperature must be close to target for this long before M109 returns success
 #define TEMP_RESIDENCY_TIME 0  // (seconds)
-#define TEMP_HYSTERESIS 5       // (C°) range of +/- temperatures considered "close" to the target one
-#define TEMP_WINDOW     2       // (degC) Window around target to start the recidency timer x degC early.
+#define TEMP_HYSTERESIS 10       // (C°) range of +/- temperatures considered "close" to the target one
+#define TEMP_WINDOW     15       // (degC) Window around target to start the recidency timer x degC early.
 
 // The minimal temperature defines the temperature below which the heater will not be enabled It is used
 // to check that the wiring to the thermistor is not broken. 
@@ -189,7 +187,7 @@
 //can be software-disabled for whatever purposes by
  #define PREVENT_DANGEROUS_EXTRUDE
  #define EXTRUDE_MINTEMP 170
-#define EXTRUDE_MAXLENGTH (200) //prevent extrusion of very large distances.
+ #define EXTRUDE_MAXLENGTH (X_MAX_LENGTH+Y_MAX_LENGTH) //prevent extrusion of very large distances.
 #else
  #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 #endif
@@ -256,28 +254,32 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 #ifdef REPRAPPRO_MENDEL
 
-#define AXES_MAX_LENGTHS {210, 210, 140}
+#define X_MAX_LENGTH 210  
+#define Y_MAX_LENGTH 210
+#define Z_MAX_LENGTH 110
 #define HOMING_FEEDRATE {10*60, 10*60, 1*60, 0}  // set the homing speeds (mm/min)
-#define FAST_HOME_FEEDRATE {50*60, 50*60, 3*60, 0}  // set the homing speeds (mm/min)
+#define FAST_HOME_FEEDRATE {50*60, 50*60, 1*60, 0}  // set the homing speeds (mm/min)
 #define DEFAULT_MAX_FEEDRATE  {500, 500, 3, 45}
 #define DEFAULT_MAX_FEEDRATE          {300, 300, 3, 45}    // (mm/sec)    
-#define DEFAULT_MAX_ACCELERATION      {800,800,30,800}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
+#define DEFAULT_MAX_ACCELERATION      {800,800,30,250}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
 
 #else
 
-#define AXES_MAX_LENGTHS {155, 150, 90}
+#define X_MAX_LENGTH 155
+#define Y_MAX_LENGTH 150
+#define Z_MAX_LENGTH 90
 #define HOMING_FEEDRATE {10*60, 10*60, 1*60, 0}  // set the homing speeds (mm/min)
-#define FAST_HOME_FEEDRATE {80*60, 80*60, 3*60, 0}  // set the homing speeds (mm/min)
+#define FAST_HOME_FEEDRATE {80*60, 80*60, 4*60, 0}  // set the homing speeds (mm/min)
 #define DEFAULT_MAX_FEEDRATE  {500, 500, 5, 45}    // (mm/sec)
 #define DEFAULT_MAX_FEEDRATE          {500, 500, 5, 45}    // (mm/sec)    
-#define DEFAULT_MAX_ACCELERATION      {1000,1000,50,1000}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
+#define DEFAULT_MAX_ACCELERATION      {1000,1000,50,250}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
 
 #endif
 
 
 // default settings 
 // X, Y, Z, E steps per mm
-#define DEFAULT_AXIS_STEPS_PER_UNIT    {92.6355, 92.6355, 4000, 660}  // Old RepRapPro extruder
+#define DEFAULT_AXIS_STEPS_PER_UNIT    {3200/17/2.032, 3200/17/2.032, 4000, 660}  // Old RepRapPro extruder
 
 
 // Defaults changed by the G10 command

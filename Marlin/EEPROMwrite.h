@@ -72,15 +72,6 @@ inline void EEPROM_StoreSettings()
   #if defined(UMFPUSUPPORT) && (UMFPUSUPPORT > -1) 
   EEPROM_writeAnything(i,FPUEnabled);
   #endif
-  EEPROM_writeAnything(i,max_length);
-  EEPROM_writeAnything(i,b_beta);
-  EEPROM_writeAnything(i,b_resistor);
-  EEPROM_writeAnything(i,b_thermistor);
-  EEPROM_writeAnything(i,b_inf);
-  EEPROM_writeAnything(i,n_beta);
-  EEPROM_writeAnything(i,n_resistor);
-  EEPROM_writeAnything(i,n_thermistor);
-  EEPROM_writeAnything(i,n_inf);
   char ver2[4]=EEPROM_VERSION;
   i=EEPROM_OFFSET;
   EEPROM_writeAnything(i,ver2); // validate data
@@ -139,11 +130,6 @@ inline void EEPROM_printSettings()
       SERIAL_ECHOPAIR(" Y",add_homeing[1] ); 
       SERIAL_ECHOPAIR(" Z", add_homeing[2] ); 
       SERIAL_ECHOLN("");
-    SERIAL_ECHO_START;
-      SERIAL_ECHOPAIR("  M208 X",max_length[0]);
-      SERIAL_ECHOPAIR(" Y",max_length[1] ); 
-      SERIAL_ECHOPAIR(" Z", max_length[2] ); 
-      SERIAL_ECHOLN("");
     #ifdef PIDTEMP
       SERIAL_ECHO_START;
       SERIAL_ECHOLNPGM("PID settings:");
@@ -154,18 +140,6 @@ inline void EEPROM_printSettings()
       SERIAL_ECHOPAIR(" W" ,Ki_Max);
       SERIAL_ECHOLN(""); 
     #endif
-      SERIAL_ECHO_START;
-      SERIAL_ECHOLNPGM("Thermistor settings: M304 Hh Bb Rr Tt, H0=Bed, H1..n=nozzle, b=thermistor beta value, r=series resistor, t=thermistor resistance as 25C");
-      SERIAL_ECHO_START;
-      SERIAL_ECHOLN(" M304 H0");
-      SERIAL_ECHOPAIR(" B",b_beta); 
-      SERIAL_ECHOPAIR(" R",b_resistor); 
-      SERIAL_ECHOPAIR(" T",b_thermistor); 
-      SERIAL_ECHOLN(" M304 H1");
-      SERIAL_ECHOPAIR(" B",n_beta); 
-      SERIAL_ECHOPAIR(" R",n_resistor); 
-      SERIAL_ECHOPAIR(" T",n_thermistor); 
-      SERIAL_ECHOLN(""); 
       #if defined(UMFPUSUPPORT) && (UMFPUSUPPORT > -1) 
       SERIAL_ECHOPAIR(" FPU Enabled" , FPUEnabled?" yes":" no");
       SERIAL_ECHOLN(""); 
@@ -207,18 +181,6 @@ inline void EEPROM_RetrieveSettings(bool def=false)
 	  #if defined(UMFPUSUPPORT) && (UMFPUSUPPORT > -1) 
 	  EEPROM_readAnything(i,FPUEnabled);
 	  #endif
-	  EEPROM_readAnything(i,max_length);
-	  #ifdef ADVANCE
-	  EEPROM_readAnything(i,advance_k);
-	  #endif
-	  EEPROM_readAnything(i,b_beta);
-	  EEPROM_readAnything(i,b_resistor);
-	  EEPROM_readAnything(i,b_thermistor);
-	  EEPROM_readAnything(i,b_inf);
-	  EEPROM_readAnything(i,n_beta);
-	  EEPROM_readAnything(i,n_resistor);
-	  EEPROM_readAnything(i,n_thermistor);
-	  EEPROM_readAnything(i,n_inf);
 
       SERIAL_ECHO_START;
       SERIAL_ECHOLNPGM("Stored settings retreived:");
@@ -229,13 +191,11 @@ inline void EEPROM_RetrieveSettings(bool def=false)
       float tmp1[]=DEFAULT_AXIS_STEPS_PER_UNIT;
       float tmp2[]=DEFAULT_MAX_FEEDRATE;
       long tmp3[]=DEFAULT_MAX_ACCELERATION;
-      float tmp4[]=AXES_MAX_LENGTHS;
       for (short i=0;i<4;i++) 
       {
         axis_steps_per_unit[i]=tmp1[i];  
         max_feedrate[i]=tmp2[i];  
         max_acceleration_units_per_sq_second[i]=tmp3[i];
-        max_length[i]=tmp4[i];
       }
       acceleration=DEFAULT_ACCELERATION;
       retract_acceleration=DEFAULT_RETRACT_ACCELERATION;
@@ -245,14 +205,6 @@ inline void EEPROM_RetrieveSettings(bool def=false)
       max_xy_jerk=DEFAULT_XYJERK;
       max_z_jerk=DEFAULT_ZJERK;
       max_e_jerk=DEFAULT_EJERK;
-      b_beta = BED_BETA;
-      b_resistor = BED_RS;
-      b_thermistor = BED_NTC;
-      b_inf = BED_R_INF;
-      n_beta = E_BETA;
-      n_resistor = E_RS;
-      n_thermistor = E_NTC;
-      n_inf = E_R_INF;
       SERIAL_ECHO_START;
       SERIAL_ECHOLN("Using Default settings:");
     }

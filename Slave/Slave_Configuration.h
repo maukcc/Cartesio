@@ -42,7 +42,7 @@
 #define ENABLES { 14, 14, 26, 14 } 
  
 
-#define THERMS { 7, 7 } // Analogue
+#define THERMS { 7, 6 } // Analogue
 #define HEATERS { 13, 12 }
 
 #define LED_PIN 27

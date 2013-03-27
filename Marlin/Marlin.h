@@ -122,7 +122,6 @@ FORCE_INLINE void serialPrintFloat( float f){
 
 void get_command();
 void process_commands();
-void selectHead(const uint8_t& tmp_extruder);
 
 void manage_inactivity(byte debug);
 
@@ -221,7 +220,6 @@ extern volatile int feedmultiply;
 extern int saved_feedmultiply;
 extern float current_position[NUM_AXIS] ;
 extern float add_homeing[3];
-extern float max_length[3];
 extern unsigned char FanSpeed;
 
 extern float destination[NUM_AXIS];
