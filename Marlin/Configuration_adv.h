@@ -73,7 +73,7 @@
 // Minimum planner junction speed. Sets the default minimum speed the planner plans for at the end
 // of the buffer and all stops. This should not be much greater than zero and should only be changed
 // if unwanted behavior is observed on a user's machine when running at very slow speeds.
-#define MINIMUM_PLANNER_SPEED 2.0 // (mm/sec)
+#define MINIMUM_PLANNER_SPEED 0.05 // (mm/sec)
 
 //===========================================================================
 //=============================Additional Features===========================
@@ -137,7 +137,7 @@ const int dropsegments=5; //everything with less than this number of steps will 
 //===========================================================================
 //=============================  Define Defines  ============================
 //===========================================================================
-
+/*
 #if TEMP_SENSOR_0 > 0
   #define THERMISTORHEATER_0 TEMP_SENSOR_0
   #define HEATER_0_USES_THERMISTOR
@@ -185,6 +185,6 @@ const int dropsegments=5; //everything with less than this number of steps will 
   #undef BED_MINTEMP
   #undef BED_MAXTEMP
 #endif
-
+*/
 
 #endif //__CONFIGURATION_ADV_H

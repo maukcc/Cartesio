@@ -47,8 +47,19 @@ float analog2tempBed(int raw);
 extern int target_raw[EXTRUDERS_T];  
 extern int heatingtarget_raw[EXTRUDERS_T];  
 extern int current_raw[EXTRUDERS_T];
+  static int minttemp[EXTRUDERS_T] = { 50 };
+  static int maxttemp[EXTRUDERS_T] = { 16383 }; // the first value used for all
 extern int target_raw_bed;
 extern int current_raw_bed;
+extern int b_beta;
+extern int b_resistor;
+extern long b_thermistor;
+extern float b_inf;
+
+extern int n_beta;
+extern int n_resistor;
+extern long n_thermistor;
+extern float n_inf;
 
 extern float Kp,Ki,Kd,Kc;
 extern int Ki_Max;
