@@ -67,7 +67,39 @@ FORCE_INLINE float slaveDegTargetHotend(uint8_t heater)
  	return getFloatFromSlave(heater, GET_TT);
 }
 
-FORCE_INLINE bool slaveIsHeatingHotend(uint8_t heater) 
+FORCE_INLINE void setSlaveExtruderThermistor(int8_t heater, const float& b, const float& r, const float& i)
+{
+	slaveXmitBuffer[0] = SET_B;
+        slaveXmitBuffer[1] = '0' + heater - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+        sprintf(&slaveXmitBuffer[2],"%f", b);
+	talkToSlave(slaveXmitBuffer);
+        delay(1);
+        slaveXmitBuffer[0] = SET_R;
+        sprintf(&slaveXmitBuffer[2],"%f", r);
+	talkToSlave(slaveXmitBuffer);
+        delay(1);
+        slaveXmitBuffer[0] = SET_I;
+        sprintf(&slaveXmitBuffer[2],"%f", i);
+	talkToSlave(slaveXmitBuffer);
+}
+
+FORCE_INLINE float getSlaveExtruderBeta(int8_t e)
+{
+  return getFloatFromSlave(e, GET_B);
+}
+
+FORCE_INLINE float getSlaveExtruderRs(int8_t e)
+{
+  return getFloatFromSlave(e, GET_R);
+}
+
+FORCE_INLINE float getSlaveExtruderRInf(int8_t e)
+{
+  return getFloatFromSlave(e, GET_I);
+}
+
+// Dunno what these are for...
+/*FORCE_INLINE bool slaveIsHeatingHotend(uint8_t heater) 
 { 
 	return slaveDegHotend(heater) < slaveDegTargetHotend(heater); 
 }
@@ -75,7 +107,7 @@ FORCE_INLINE bool slaveIsHeatingHotend(uint8_t heater)
 FORCE_INLINE bool  slaveIsCoolingHotend(uint8_t heater) 
 { 
 	return !slaveIsHeatingHotend(heater) ; 
-}
+}*/
 
 FORCE_INLINE void slaveHeatTest(uint8_t heater)
 {

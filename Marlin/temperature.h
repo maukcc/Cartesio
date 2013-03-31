@@ -38,6 +38,15 @@
 void tp_init();  //initialise the heating
 void manage_heater(); //it is critical that this is called periodically.
 
+void setExtruderThermistor(int8_t e, const float& b, const float& r, const float& i);
+void setBedThermistor(const float& b, const float& r, const float& i);
+float getExtruderBeta(int8_t e);
+float getExtruderRs(int8_t e);
+float getExtruderRInf(int8_t e);
+float getBedBeta();
+float getBedRs();
+float getBedRInf();
+
 //low leven conversion routines
 // do not use this routines and variables outsie of temperature.cpp
 int temp2analog(int celsius, uint8_t e);

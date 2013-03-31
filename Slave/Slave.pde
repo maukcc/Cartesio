@@ -64,6 +64,10 @@ float temp_dState[HOT_ENDS];
 float lastTemp[HOT_ENDS];
 float dt = 0.001*(float)TEMP_INTERVAL;
 
+// Termistor
+
+float eBeta, eRs, eRInf;
+
 /* *******************************************************************
 
   The master clock interrupt
@@ -115,6 +119,10 @@ void setup()
   
   if(LED_PIN >= 0)
     pinMode(LED_PIN, OUTPUT);
+  
+  eBeta = TH_BETA;
+  eRs = TH_RS;
+  eRInf = TH_R_INF;
 
 // See http://www.me.ucsb.edu/~me170c/Code/How_to_Enable_Interrupts_on_ANY_pin.pdf
   
@@ -159,6 +167,14 @@ inline void debugMessage(char* s, int i)
   DEBUG_IO.println(i); 
 }
 
+inline void debugMessage(char* s, float f)
+{
+  if(!debug)
+   return;
+  DEBUG_IO.print(s);
+  DEBUG_IO.println(f); 
+}
+
 inline void debugMessage(char* s1, int i1, char* s2, int i2)
 {
   if(!debug)
@@ -176,6 +192,12 @@ inline void talkToMaster(int i)
   MASTER.print(END_C);
 }
 
+inline void talkToMaster(float f)
+{
+  MASTER.print(BEGIN_C);
+  MASTER.print(f);
+  MASTER.print(END_C);
+}
 
 inline void incomming()
 { 
@@ -253,7 +275,7 @@ inline float getTemperature(int8_t heater)
   if(heater < 0 || heater >= HOT_ENDS)
     return ABS_ZERO;
   float r = (float)getRawTemperature(heater);
-  r = ABS_ZERO + TH_BETA/log( (r*TH_RS/(AD_RANGE - r)) /TH_R_INF );
+  r = ABS_ZERO + eBeta/log( (r*eRs/(AD_RANGE - r)) /eRInf );
   currentTemps[heater] = (int)r;
   return r;
 }
@@ -418,6 +440,36 @@ void command()
     case SET_T: // Set temperature of an extruder
       setTemperature(dh, atoi(&buf[2]));
       debugMessage("Set target temp to: ", intSetTemps[dh], " for extruder ", dh);
+      break;
+      
+    case SET_B:
+      eBeta = atof(&buf[2]);
+      debugMessage("Set eBeta to: ", eBeta);
+      break;
+    
+    case SET_R:
+      eRs = atof(&buf[2]);
+      debugMessage("Set eRs to: ", eRs);
+      break;
+    
+    case SET_I:
+      eRInf = atof(&buf[2]);
+      debugMessage("Set eRInf to: ", eRInf);
+      break;
+      
+    case GET_B:
+      talkToMaster(eBeta);
+      debugMessage("Sent eBeta: ", eBeta);
+      break;
+    
+    case GET_R:
+      talkToMaster(eRs);
+      debugMessage("Sent eRs: ", eRs);
+      break;
+    
+    case GET_I:
+      talkToMaster(eRInf);
+      debugMessage("Sent eRInf: ", eRInf);
       break;
       
     case DRIVE:  // Set the current drive

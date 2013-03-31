@@ -100,9 +100,14 @@
 
 // This DOES assume that all extruders use the same thermistor type.
 
+#define BED_USES_THERMISTOR
+#define HEATER_0_USES_THERMISTOR
+#define HEATER_1_USES_THERMISTOR
+#define HEATER_2_USES_THERMISTOR
 
 #define ABS_ZERO -273.15
 #define AD_RANGE 16383
+
 
 // Extruder thermistor: RS 198-961
 #define E_BETA 3960.0
@@ -125,13 +130,6 @@
 
 #define BED_RS SERIAL_R
 #define BED_R_INF ( BED_NTC*exp(-BED_BETA/298.15) )
-
-
-#define BED_USES_THERMISTOR
-#define HEATER_0_USES_THERMISTOR
-#define HEATER_1_USES_THERMISTOR
-#define HEATER_2_USES_THERMISTOR
-
 
 
 // Actual temperature must be close to target for this long before M109 returns success

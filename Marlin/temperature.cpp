@@ -42,6 +42,14 @@ int target_raw_bed = 0;
 int current_raw[EXTRUDERS_T] = { 0 };
 int current_raw_bed = 0;
 
+#ifdef HEATER_0_USES_THERMISTOR
+float eBeta, eRs, eRInf;
+#endif
+
+#ifdef BED_USES_THERMISTOR
+float bBeta, bRs, bRInf;
+#endif
+
 #ifdef PIDTEMP
   // used external
   float pid_setpoint[EXTRUDERS_T] = { 0.0 };
@@ -90,6 +98,52 @@ static unsigned long  previous_millis_bed_heater;
 //===========================================================================
 //=============================   functions      ============================
 //===========================================================================
+
+
+void setExtruderThermistor(int8_t e, const float& b, const float& r, const float& i)
+{
+  if(e > 0)
+  {
+     setSlaveExtruderThermistor(e, b, r, i);
+     return;
+  }
+  eBeta = b;
+  eRs = r;
+  eRInf = i;
+}
+
+void setBedThermistor(const float& b, const float& r, const float& i)
+{
+  bBeta = b;
+  bRs = r;
+  bRInf = i;
+}
+
+float getExtruderBeta(int8_t e)
+{
+  if(e == 0)
+    return eBeta;
+  return getSlaveExtruderBeta(e);
+}
+
+float getExtruderRs(int8_t e)
+{
+  if(e == 0)
+    return eRs;
+  return getSlaveExtruderRs(e);
+}
+
+float getExtruderRInf(int8_t e)
+{
+  if(e == 0)
+    return eRInf;
+  return getSlaveExtruderRInf(e);
+}
+
+float getBedBeta() { return bBeta; }
+float getBedRs() { return bRs; }
+float getBedRInf() { return bRInf; }
+
 
 void PID_autotune(float temp)
 {
@@ -321,7 +375,7 @@ float analog2temp_remote(uint8_t e)
 int temp2analog_remote(int celsius, uint8_t e)
 {
 	// What do we do about this, then?
-	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF);
+	return temp2analogi(celsius, eBeta, eRs, eRInf);
 }
 #endif
 
@@ -331,23 +385,23 @@ int temp2analog(int celsius, uint8_t e)
 #ifdef REPRAPPRO_MULTIMATERIALS
 	if(e > 0) return temp2analog_remote(celsius, e);
 #endif
-	return temp2analogi(celsius, E_BETA, E_RS, E_R_INF); 
+	return temp2analogi(celsius, eBeta, eRs, eRInf); 
 }
 float analog2temp(int raw, uint8_t e) 
 {
 #ifdef REPRAPPRO_MULTIMATERIALS
 	if(e > 0) return analog2temp_remote(e);
 #endif
-	return analog2tempi(raw, E_BETA, E_RS, E_R_INF); 
+	return analog2tempi(raw, eBeta, eRs, eRInf); 
 }
 
 int temp2analogBed(int celsius) 
 {
-	return temp2analogi(celsius, BED_BETA, BED_RS, BED_R_INF); 
+	return temp2analogi(celsius, bBeta, bRs, bRInf); 
 }
 float analog2tempBed(int raw) 
 { 
-	return analog2tempi(raw, BED_BETA, BED_RS, BED_R_INF); 
+	return analog2tempi(raw, bBeta, bRs, bRInf); 
 }
 
 

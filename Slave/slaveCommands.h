@@ -21,6 +21,12 @@
 #define GET_T 't'      // Get temperature
 #define GET_TT 's'     // Get target temperature
 #define SET_T 'T'      // Set temperature
+#define SET_B 'E'      // Set thermistor beta
+#define SET_R 'R'      // Set thermistor series R
+#define SET_I 'I'      // Set thermistor infinite R
+#define GET_B 'e'      // Get thermistor beta
+#define GET_R 'r'      // Get thermistor series R
+#define GET_I 'i'      // Get thermistor infinite R
 #define SET_PID 'P'    // Set PID parameters
 #define Q_DDA 'Q'      // Queue DDA parameters
 #define SET_DDA 'D'    // Set DDA parameters from head of queue

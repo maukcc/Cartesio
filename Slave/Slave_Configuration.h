@@ -80,6 +80,7 @@
 //#define AD_RANGE 16383.0
 #define AD_RANGE 1023.0
 
+
 // RS 198-961
 #define TH_BETA 3960.0
 #define TH_RS 4700.0

@@ -312,8 +312,9 @@ void setup()
     extruder_z_off[i] = Z_EXTRUDER_OFFSET;
     extruder_standby[i] = STANDBY_TEMP;
     extruder_temperature[i] = DEFAULT_TEMP;
+    setExtruderThermistor(i, E_BETA, E_RS, E_R_INF);
   }
-
+  setBedThermistor(BED_BETA, BED_RS, BED_R_INF);
 
   // Check startup - does nothing if bootloader sets MCUSR to 0
   byte mcu = MCUSR;
@@ -1461,6 +1462,61 @@ void process_commands()
       PID_autotune(temp);
     }
     break;
+    case 304: // Set thermistor parameters
+    {
+      // M304 H0 B3960 R4700
+      // M304 H1 Bb Rr
+      if (code_seen('H'))
+      {
+       float beta, resistor, thermistor, inf;
+       int hval = code_value();
+       if(!hval)
+       {
+        //set BED thermistor
+        beta = getBedBeta();
+        resistor = getBedRs();
+        inf = getBedRInf();
+        thermistor = inf/(exp(-beta/298.15));
+        if(code_seen('B')) beta = code_value();
+        if(code_seen('R')) resistor = code_value();
+        if(code_seen('T')) thermistor = code_value();
+        inf = ( thermistor*exp(-beta/298.15) );
+        setBedThermistor(beta, resistor, inf);
+        SERIAL_PROTOCOL(MSG_OK);
+        SERIAL_PROTOCOL(" M304 H0 B");
+        SERIAL_PROTOCOL(beta);
+        SERIAL_PROTOCOL(" R");
+        SERIAL_PROTOCOL(resistor);
+        SERIAL_PROTOCOL(" T");
+        SERIAL_PROTOCOL(thermistor);
+        SERIAL_PROTOCOLLN("");
+       }else
+       {
+        //set extruder thermistor
+        beta = getExtruderBeta(hval);
+        resistor = getExtruderRs(hval);
+        inf = getExtruderRInf(hval);
+        thermistor = inf/(exp(-beta/298.15));
+        if(code_seen('B')) beta = code_value();
+        if(code_seen('R')) resistor = code_value();
+        if(code_seen('T')) thermistor = code_value();
+        inf = ( thermistor*exp(-beta/298.15) );
+        setExtruderThermistor(hval, beta, resistor, inf);
+        SERIAL_PROTOCOL(MSG_OK);
+        SERIAL_PROTOCOL(" M304 H0 B");
+        SERIAL_PROTOCOL(beta);
+        SERIAL_PROTOCOL(" R");
+        SERIAL_PROTOCOL(resistor);
+        SERIAL_PROTOCOL(" T");
+        SERIAL_PROTOCOL(thermistor);
+        SERIAL_PROTOCOLLN("");
+       }
+     }
+    }
+    break;    
+    
+ 
+    
     case 400: // M400 finish all moves
     {
       st_synchronize();
