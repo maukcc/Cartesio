@@ -581,6 +581,11 @@ long code_value_long()
   return (strtol(&cmdbuffer[bufindr][strchr_pointer - cmdbuffer[bufindr] + 1], NULL, 10)); 
 }
 
+int code_value_int() 
+{ 
+  return (int)code_value_long(); 
+}
+
 bool code_seen(char code_string[]) //Return True if the string was found
 { 
   return (strstr(cmdbuffer[bufindr], code_string) != NULL); 
@@ -1503,12 +1508,15 @@ void process_commands()
     case 556:  // Slave heater test - extruder 2
       slaveHeatTest(2);
       break;
-    case 557:
-      slaveDebug(true); // slave debugging on
-      break;
-    case 558:
-      slaveDebug(false); // slave debugging off
-      break;      
+    case 111:
+      if(code_seen('S'))
+      { 
+        if(code_value_int())
+          slaveDebug(true);
+        else
+          slaveDebug(false);
+      }
+      break; 
 #endif
     }
   }
