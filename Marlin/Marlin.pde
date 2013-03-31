@@ -1493,6 +1493,7 @@ void process_commands()
        }else
        {
         //set extruder thermistor
+        hval--;
         beta = getExtruderBeta(hval);
         resistor = getExtruderRs(hval);
         inf = getExtruderRInf(hval);

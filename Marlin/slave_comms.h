@@ -21,6 +21,7 @@ extern boolean driveOn[];
 extern boolean firstTalk;
 extern boolean inSlaveMessage;
 extern unsigned long timeout;
+extern long precision[];
 
 
 float slaveDegHotend(uint8_t heater);
@@ -67,19 +68,31 @@ FORCE_INLINE float slaveDegTargetHotend(uint8_t heater)
  	return getFloatFromSlave(heater, GET_TT);
 }
 
+FORCE_INLINE char* ftoa(char *a, const float& f, int prec)
+{
+  char *ret = a;
+  long heiltal = (long)f;
+  itoa(heiltal, a, 10);
+  while (*a != '\0') a++;
+  *a++ = '.';
+  long decimal = abs((long)((f - heiltal) * precision[prec]));
+  itoa(decimal, a, 10);
+  return ret;
+}
+
 FORCE_INLINE void setSlaveExtruderThermistor(int8_t heater, const float& b, const float& r, const float& i)
 {
 	slaveXmitBuffer[0] = SET_B;
         slaveXmitBuffer[1] = '0' + heater - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
-        sprintf(&slaveXmitBuffer[2],"%f", b);
+        ftoa(&slaveXmitBuffer[2], b, 1);
 	talkToSlave(slaveXmitBuffer);
         delay(1);
         slaveXmitBuffer[0] = SET_R;
-        sprintf(&slaveXmitBuffer[2],"%f", r);
+        ftoa(&slaveXmitBuffer[2], r, 1);
 	talkToSlave(slaveXmitBuffer);
         delay(1);
         slaveXmitBuffer[0] = SET_I;
-        sprintf(&slaveXmitBuffer[2],"%f", i);
+        ftoa(&slaveXmitBuffer[2], i, 4);
 	talkToSlave(slaveXmitBuffer);
 }
 
