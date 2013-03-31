@@ -162,6 +162,7 @@ int saved_feedmultiply;
 volatile bool feedmultiplychanged=false;
 volatile int extrudemultiply=100; //100->1 200->2
 float current_position[NUM_AXIS] = { 0.0, 0.0, 0.0, 0.0 };
+float max_length[] = AXES_MAX_LENGTHS;
 float add_homeing[3]={0,0,0};
 uint8_t active_extruder = 0;
 float extruder_x_off[EXTRUDERS];
@@ -602,7 +603,7 @@ bool code_seen(char code)
     { \
     current_position[LETTER##_AXIS] = 0; \
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]); \
-    destination[LETTER##_AXIS] = 1.1 * LETTER##_MAX_LENGTH * LETTER##_HOME_DIR; \
+    destination[LETTER##_AXIS] = 1.1 * max_length[LETTER##_AXIS] * LETTER##_HOME_DIR; \
     feedrate = fast_home_feedrate[LETTER##_AXIS]; \
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder); \
     st_synchronize();\
@@ -614,11 +615,11 @@ bool code_seen(char code)
     st_synchronize();\
     \
     destination[LETTER##_AXIS] = 2*LETTER##_HOME_RETRACT_MM * LETTER##_HOME_DIR;\
-    feedrate = homing_feedrate[LETTER##_AXIS] ;  \
+    feedrate = homing_feedrate[LETTER##_AXIS] ; \
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder); \
     st_synchronize();\
     \
-    current_position[LETTER##_AXIS] = (LETTER##_HOME_DIR == -1) ? LETTER##_HOME_POS : LETTER##_MAX_LENGTH;\
+    current_position[LETTER##_AXIS] = LETTER##_HOME_POS;\
     destination[LETTER##_AXIS] = current_position[LETTER##_AXIS];\
     feedrate = 0.0;\
     endstops_hit_on_purpose();\
@@ -1372,6 +1373,17 @@ void process_commands()
         if(code_seen(axis_codes[i])) add_homeing[i] = code_value();
       }
       break;
+    case 208: // M208 set axis max length
+      for(int8_t i=0; i < 3; i++)
+      {
+        if(code_seen(axis_codes[i])) {
+          max_length[i] = code_value();
+          SERIAL_PROTOCOL(axis_codes[i]);
+          SERIAL_PROTOCOL(" Axis max length: ");
+          SERIAL_PROTOCOL(max_length[i]);
+        }
+      }
+      break;
     case 220: // M220 S<factor in percent>- set speed factor override percentage
     {
       if(code_seen('S')) 
@@ -1684,9 +1696,9 @@ void prepare_move()
   }
 
   if (max_software_endstops) {
-    if (modified_destination[X_AXIS] > X_MAX_LENGTH) modified_destination[X_AXIS] = X_MAX_LENGTH;
-    if (modified_destination[Y_AXIS] > Y_MAX_LENGTH) modified_destination[Y_AXIS] = Y_MAX_LENGTH;
-    if (modified_destination[Z_AXIS] > Z_MAX_LENGTH) modified_destination[Z_AXIS] = Z_MAX_LENGTH;
+    if (modified_destination[X_AXIS] > max_length[X_AXIS]) modified_destination[X_AXIS] = max_length[X_AXIS];
+    if (modified_destination[Y_AXIS] > max_length[Y_AXIS]) modified_destination[Y_AXIS] = max_length[Y_AXIS];
+    if (modified_destination[Z_AXIS] > max_length[Z_AXIS]) modified_destination[Z_AXIS] = max_length[Z_AXIS];
   }
   previous_millis_cmd = millis();  
   plan_buffer_line(modified_destination[X_AXIS], modified_destination[Y_AXIS], modified_destination[Z_AXIS], destination[E_AXIS], feedrate*feedmultiply/60/100.0, active_extruder);

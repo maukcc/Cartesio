@@ -217,6 +217,7 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 #define DISABLE_E false // For all extruders
 
 #ifdef REPRAPPRO_MENDEL
+#define AXES_MAX_LENGTHS {210, 210, 140}
 #define INVERT_X_DIR true    // for Mendel set to false, for Orca set to true
 #define INVERT_Y_DIR true    // for Mendel set to true, for Orca set to false
 #define INVERT_Z_DIR false     // for Mendel set to false, for Orca set to true
@@ -226,6 +227,7 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 #endif
 
 #ifdef REPRAPPRO_HUXLEY
+#define AXES_MAX_LENGTHS {155, 150, 90}
 #define INVERT_X_DIR true    // for Mendel set to false, for Orca set to true
 #define INVERT_Y_DIR false    // for Mendel set to true, for Orca set to false
 #define INVERT_Z_DIR false     // for Mendel set to false, for Orca set to true
