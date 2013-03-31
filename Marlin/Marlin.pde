@@ -1503,7 +1503,9 @@ void process_commands()
         inf = ( thermistor*exp(-beta/298.15) );
         setExtruderThermistor(hval, beta, resistor, inf);
         SERIAL_PROTOCOL(MSG_OK);
-        SERIAL_PROTOCOL(" M304 H0 B");
+        SERIAL_PROTOCOL(" M304 H");
+        SERIAL_PROTOCOL(hval);
+        SERIAL_PROTOCOL(" B");
         SERIAL_PROTOCOL(beta);
         SERIAL_PROTOCOL(" R");
         SERIAL_PROTOCOL(resistor);

@@ -159,6 +159,14 @@ void stopSlave()
     DEBUG_IO.println("Stopped");
 }
 
+inline void debugMessage(char* s1, char* s2)
+{
+  if(!debug)
+   return;
+  DEBUG_IO.print(s1);
+  DEBUG_IO.println(s2); 
+}
+
 inline void debugMessage(char* s, int i)
 {
   if(!debug)
@@ -420,7 +428,9 @@ void command()
 {
   if(!buf[0])
     return;
-    
+  
+  debugMessage("Received: ", buf);
+  
   uint8_t dh = buf[1]-'0';
   switch(buf[0])
   {
