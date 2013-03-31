@@ -46,7 +46,9 @@ FORCE_INLINE float getFloatFromSlave(uint8_t device, char command)
         //Serial.print(slaveRcvBuffer);Serial.print(" **");
 	float r = atof(slaveRcvBuffer);
         slaveRcvBuffer[0] = 0; // Clear to avoid confusion
+        if(r)
         return r;
+        return -273.0;
 }
 
 

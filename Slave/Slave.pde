@@ -112,9 +112,9 @@ void setup()
     analogWrite(heaters[i], 0);
     temp_iState[i] = 0.0;
     temp_dState[i] = 0.0;
-    lastTemp[i] = 0.0;
-    setTemperature(i, 0);
-    currentTemps[i] = 0;
+    lastTemp[i] = -273.0;
+    setTemperature(i, -273.0);
+    currentTemps[i] = -273.0;
   }
   
   if(LED_PIN >= 0)

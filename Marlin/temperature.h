@@ -29,7 +29,7 @@
 // about the temperature of the first one of them.
 
 #ifdef REPRAPPRO_MULTIMATERIALS
-#define EXTRUDERS_T 1
+#define EXTRUDERS_T 3
 #else
 #define EXTRUDERS_T EXTRUDERS
 #endif
@@ -56,6 +56,8 @@ float analog2tempBed(int raw);
 extern int target_raw[EXTRUDERS_T];  
 extern int heatingtarget_raw[EXTRUDERS_T];  
 extern int current_raw[EXTRUDERS_T];
+  static int minttemp[EXTRUDERS_T] = { 50 };
+  static int maxttemp[EXTRUDERS_T] = { 16383 }; // the first value used for all
 extern int target_raw_bed;
 extern int current_raw_bed;
 
@@ -170,6 +172,8 @@ FORCE_INLINE bool isCoolingBed() {
 int getHeaterPower(int heater);
 void disable_heater();
 void updatePID();
+void max_temp_error(uint8_t e);
+void min_temp_error(uint8_t e);
 
 FORCE_INLINE void autotempShutdown(){
 }

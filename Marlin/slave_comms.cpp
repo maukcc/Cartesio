@@ -24,6 +24,26 @@ void setup_slave()
           setDir[i] = true;
           driveOn[i] = false;
         }
+  //get slave extruder temps until readings are sensible
+    SERIAL_PROTOCOLLNPGM("Slave init. Please wait ... ");
+    int head = 1;
+    for(uint8_t i=0;i<20;i++)
+    {
+        SERIAL_PROTOCOLPGM(".");
+        if(slaveDegHotend(1) > -1)
+        {
+            head = 2;
+            if(slaveDegHotend(2) > -1)
+            {
+                SERIAL_PROTOCOLLNPGM("Slave ready");
+                return;
+            }
+        }
+        delay(1000);
+    }
+    SERIAL_PROTOCOLPGM("Slave init FAIL head ");
+    SERIAL_PROTOCOLLN(head);
+    return;
 }
 
 #endif

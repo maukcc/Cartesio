@@ -89,8 +89,8 @@ static unsigned long  previous_millis_bed_heater;
 
 
 // Init min and max temp with extreme values to prevent false errors during startup
-  static int minttemp[EXTRUDERS_T] = { 0 };
-  static int maxttemp[EXTRUDERS_T] = { 16383 }; // the first value used for all
+//  static int minttemp[EXTRUDERS_T] = { 0 };
+//  static int maxttemp[EXTRUDERS_T] = { 16383 }; // the first value used for all
   static int bed_minttemp = 0;
   static int bed_maxttemp = 16383;
   
@@ -329,6 +329,33 @@ void manage_heater()
   if(millis() - previous_millis_bed_heater < BED_CHECK_INTERVAL)
     return;
   previous_millis_bed_heater = millis();
+
+  //check slave temps for errors here because only done every 5secs
+#ifdef REPRAPPRO_MULTIMATERIALS
+  for(uint8_t e = 1;e < EXTRUDERS_T;e++)
+  {
+      if(degHotend(e) >= HEATER_MAXTEMP)
+      {
+          setTargetHotend(0,e);
+          max_temp_error(e);
+          #ifndef BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
+          {
+            Stop();
+          }
+          #endif
+      }
+      if(degHotend(e) <= HEATER_MINTEMP)
+      {
+          setTargetHotend(0,e);
+          min_temp_error(e);
+          #ifndef BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
+          {
+            Stop();
+          }
+          #endif
+      }
+  }
+#endif
   
   #if TEMP_BED_PIN > -1
 
@@ -485,6 +512,9 @@ void tp_init()
   maxttemp[0] = temp2analog(HEATER_0_MAXTEMP, 0);
 #endif //MAXTEMP
 
+#ifdef REPRAPPRO_MULTIMATERIALS
+  // Nothing to do here - remote handles it
+#else
 #if (EXTRUDERS_T > 1) && defined(HEATER_1_MINTEMP)
   minttemp[1] = temp2analog(HEATER_1_MINTEMP, 1);
 #endif // MINTEMP 1
@@ -498,6 +528,7 @@ void tp_init()
 #if (EXTRUDERS_T > 2) && defined(HEATER_2_MAXTEMP)
   maxttemp[2] = temp2analog(HEATER_2_MAXTEMP, 2);
 #endif //MAXTEMP 2
+#endif
 
 #ifdef BED_MINTEMP
   bed_minttemp = temp2analogBed(BED_MINTEMP);
@@ -718,8 +749,10 @@ ISR(TIMER0_COMPB_vect)
     #else
       current_raw[0] = 16383 - raw_temp_0_value;
     #endif
-
-#if EXTRUDERS_T > 1    
+#ifdef REPRAPPRO_MULTIMATERIALS
+  // Nothing to do here - remote handles it
+#else
+#if EXTRUDERS_T > 1
     #ifdef HEATER_1_USES_AD595
       current_raw[1] = raw_temp_1_value;
     #else
@@ -734,7 +767,7 @@ ISR(TIMER0_COMPB_vect)
       current_raw[2] = 16383 - raw_temp_2_value;
     #endif
 #endif
-    
+#endif
 
     current_raw_bed = 16383 - raw_temp_bed_value;
 
@@ -748,8 +781,14 @@ ISR(TIMER0_COMPB_vect)
     
     //check_all_temps(); // This checks for above max and below min
 
-/*    for(unsigned char e = 0; e < EXTRUDERS_T; e++) 
+    for(unsigned char e = 0; e < EXTRUDERS_T; e++)
     {
+#ifdef REPRAPPRO_MULTIMATERIALS
+        if(e > 0)
+        {
+            //Do nothing
+        }else{
+#endif
        if(current_raw[e] >= maxttemp[e]) {
           target_raw[e] = 0;
           max_temp_error(e);
@@ -768,8 +807,11 @@ ISR(TIMER0_COMPB_vect)
           }
           #endif
        }
+#ifdef REPRAPPRO_MULTIMATERIALS
     }
-*/
+#endif
+    }
+
 
 #if defined(BED_MAXTEMP) && (HEATER_BED_PIN > -1)
     if(current_raw_bed >= bed_maxttemp) {
