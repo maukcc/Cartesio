@@ -86,6 +86,9 @@
 #define TH_RS 4700.0
 #define TH_R_INF ( 100000.0*exp(-TH_BETA/298.15) )
 
+#define HEATER_MAXTEMP 275.0
+#define HEATER_MINTEMP -1.0
+
 // PID constants
 
 //#define TEMP_INTERVAL 500ul  // check temperature this many milliseconds

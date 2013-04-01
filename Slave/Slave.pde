@@ -52,7 +52,7 @@ long precision[] = {0,10,100,1000,10000,100000,1000000,10000000,100000000};
 
 float setTemps[HOT_ENDS];
 //int intSetTemps[HOT_ENDS];
-int currentTemps[HOT_ENDS];
+float currentTemps[HOT_ENDS];
 
 // PID variables
 
@@ -160,15 +160,11 @@ char* ftoa(char *a, const float& f, int prec)
   return ret;
 }
 
-void stopSlave()
+inline void debugMessage(char* s1)
 {
-  int8_t i;
-  for(i = 0; i < DRIVES; i++)
-    disable(i);
-  for(i = 0; i < HOT_ENDS; i++)
-    setTemperature(i, 0.0); 
-  if(debug)
-    DEBUG_IO.println("Stopped");
+  if(!debug)
+   return;
+  DEBUG_IO.println(s1); 
 }
 
 inline void debugMessage(char* s1, char* s2)
@@ -213,6 +209,16 @@ inline void debugMessage(char* s1, float f1, char* s2, int i2)
   DEBUG_IO.print(f1);
   DEBUG_IO.print(s2);
   DEBUG_IO.println(i2);  
+}
+
+void stopSlave()
+{
+  int8_t i;
+  for(i = 0; i < DRIVES; i++)
+    disable(i);
+  for(i = 0; i < HOT_ENDS; i++)
+    setTemperature(i, 0.0); 
+  debugMessage("Stopped");
 }
 
 inline void talkToMaster(int i)
@@ -306,7 +312,17 @@ inline float getTemperature(int8_t heater)
     return ABS_ZERO;
   float r = (float)getRawTemperature(heater);
   r = ABS_ZERO + eBeta/log( (r*eRs/(AD_RANGE - r)) /eRInf );
-  currentTemps[heater] = (int)r;
+  currentTemps[heater] = r;
+  if(r > HEATER_MAXTEMP)
+  {
+    error("max temp exceeded");
+    stopSlave();
+  }
+  if(r < HEATER_MINTEMP)
+  {
+    error("min temp deceeded");
+    stopSlave();
+  }    
   return r;
 }
 
