@@ -330,31 +330,31 @@ void manage_heater()
     return;
   previous_millis_bed_heater = millis();
 
-  //check slave temps for errors here because only done every 5secs
+  //check master temps for errors here because only done every 5secs
+  // Slave does its own checking
 #ifdef REPRAPPRO_MULTIMATERIALS
-/*  for(uint8_t e = 1;e < EXTRUDERS_T;e++)
-  {
-      if(degHotend(e) >= HEATER_MAXTEMP)
+
+      if(degHotend(0) >= HEATER_MAXTEMP)
       {
-          setTargetHotend(0,e);
-          max_temp_error(e);
+          setTargetHotend(0,0);
+          max_temp_error(0);
           #ifndef BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
           {
             Stop();
           }
           #endif
       }
-      if(degHotend(e) <= HEATER_MINTEMP)
+      if(degHotend(0) <= HEATER_MINTEMP)
       {
-          setTargetHotend(0,e);
-          min_temp_error(e);
+          setTargetHotend(0,0);
+          min_temp_error(0);
           #ifndef BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
           {
             Stop();
           }
           #endif
       }
-  }*/
+
 #endif
   
   #if TEMP_BED_PIN > -1

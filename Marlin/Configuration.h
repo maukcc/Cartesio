@@ -49,7 +49,7 @@
 
 // Uncomment this if you are experimenting, know what you are doing, and want to switch off some safety
 // features, e.g. allow extrude at low temperature etc.
-#define DEVELOPING
+//#define DEVELOPING
 
 // This configurtion file contains the basic settings.
 // Advanced settings can be found in Configuration_adv.h 

@@ -29,7 +29,7 @@
 // about the temperature of the first one of them.
 
 #ifdef REPRAPPRO_MULTIMATERIALS
-#define EXTRUDERS_T 3
+#define EXTRUDERS_T 1
 #else
 #define EXTRUDERS_T EXTRUDERS
 #endif
