@@ -88,8 +88,11 @@ ISR ( PCINT2_vect )
 
 void setup() 
 {
-  inMessage = false;
   int8_t i;
+    
+  stopped = false;
+  inMessage = false;
+
   DEBUG_IO.begin(DEBUG_BAUD);
   DEBUG_IO.println("\nRepRapPro slave controller restarted.");
   debug = false;
@@ -136,7 +139,6 @@ void setup()
   interrupts();
   time = millis() + TEMP_INTERVAL;
   clearMasterChannel();
-  stopped = false;
 }
 
 inline char* strplus(char* a, char* b)
@@ -215,6 +217,8 @@ inline void debugMessage(char* s1, float f1, char* s2, int i2)
 
 void stopSlave()
 {
+  if(stopped)
+    return;
   int8_t i;
   for(i = 0; i < DRIVES; i++)
     disable(i);
