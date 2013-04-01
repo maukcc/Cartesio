@@ -155,11 +155,11 @@ inline void error(char* s)
 char* ftoa(char *a, const float& f, int prec)
 {
   char *ret = a;
-  long heiltal = (long)f;
-  itoa(heiltal, a, 10);
+  long whole = (long)f;
+  itoa(whole, a, 10);
   while (*a != '\0') a++;
   *a++ = '.';
-  long decimal = abs((long)((f - heiltal) * precision[prec]));
+  long decimal = abs((long)((f - (float)whole) * precision[prec]));
   itoa(decimal, a, 10);
   return ret;
 }
