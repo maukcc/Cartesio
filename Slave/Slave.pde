@@ -37,6 +37,7 @@ char scratch[2*BUFLEN];
 int bp;
 boolean debug;
 boolean inMessage;
+boolean stopped = true;
 
 // Pin arrays
 
@@ -135,6 +136,7 @@ void setup()
   interrupts();
   time = millis() + TEMP_INTERVAL;
   clearMasterChannel();
+  stopped = false;
 }
 
 inline char* strplus(char* a, char* b)
@@ -219,6 +221,7 @@ void stopSlave()
   for(i = 0; i < HOT_ENDS; i++)
     setTemperature(i, 0.0); 
   debugMessage("Stopped");
+  stopped = true;
 }
 
 inline void talkToMaster(int i)
@@ -398,9 +401,8 @@ void heatControl()
 }
 
 inline void tempCheck()
-{
-  
-  if((long)(time - millis()) > 0)
+{    
+  if((long)(time - millis()) > 0  || stopped)
     return;
   time += TEMP_INTERVAL;
     
@@ -417,7 +419,7 @@ inline void tempCheck()
 
 inline void stepExtruder(int8_t drive)
 {
-  if(drive < 0 || drive >= DRIVES)
+  if(drive < 0 || drive >= DRIVES || stopped)
     return;
   digitalWrite(steps[drive],1);
   digitalWrite(steps[drive],0);
@@ -425,21 +427,21 @@ inline void stepExtruder(int8_t drive)
 
 inline void setDirection(int8_t drive, bool dir)
 {
-  if(drive < 0 || drive >= DRIVES)
+  if(drive < 0 || drive >= DRIVES || stopped)
     return;
   digitalWrite(dirs[drive], dir);
 }
 
 inline void enable(int8_t drive)
 {
-  if(drive < 0 || drive >= DRIVES)
+  if(drive < 0 || drive >= DRIVES || stopped)
     return;
   digitalWrite(enables[drive], ENABLE);
 }
 
 inline void disable(int8_t drive)
 {
- if(drive < 0 || drive >= DRIVES)
+ if(drive < 0 || drive >= DRIVES || stopped)
    return;
  digitalWrite(enables[drive], DISABLE);
 }
@@ -451,6 +453,9 @@ inline void disable(int8_t drive)
 
 void heaterTest(int8_t h)
 {
+  if(stopped)
+    return;
+    
   analogWrite(heaters[h], (int)(TEST_POWER*PID_MAX));
   float t = 0;
   while(t < TEST_DURATION)
