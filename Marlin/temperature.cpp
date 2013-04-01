@@ -332,7 +332,7 @@ void manage_heater()
 
   //check slave temps for errors here because only done every 5secs
 #ifdef REPRAPPRO_MULTIMATERIALS
-  for(uint8_t e = 1;e < EXTRUDERS_T;e++)
+/*  for(uint8_t e = 1;e < EXTRUDERS_T;e++)
   {
       if(degHotend(e) >= HEATER_MAXTEMP)
       {
@@ -354,7 +354,7 @@ void manage_heater()
           }
           #endif
       }
-  }
+  }*/
 #endif
   
   #if TEMP_BED_PIN > -1
