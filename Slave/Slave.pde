@@ -67,7 +67,9 @@ float dt = 0.001*(float)TEMP_INTERVAL;
 
 // Termistor
 
-float eBeta, eRs, eRInf;
+float eBeta[HOT_ENDS]; 
+float eRs[HOT_ENDS];
+float eRInf[HOT_ENDS];
 
 /* *******************************************************************
 
@@ -119,14 +121,13 @@ void setup()
     lastTemp[i] = -273.0;
     setTemperature(i, -273.0);
     currentTemps[i] = -273.0;
+    eBeta[i] = TH_BETA;
+    eRs[i] = TH_RS;
+    eRInf[i] = TH_R_INF;
   }
   
   if(LED_PIN >= 0)
     pinMode(LED_PIN, OUTPUT);
-  
-  eBeta = TH_BETA;
-  eRs = TH_RS;
-  eRInf = TH_R_INF;
 
 // See http://www.me.ucsb.edu/~me170c/Code/How_to_Enable_Interrupts_on_ANY_pin.pdf
   
@@ -318,7 +319,7 @@ inline float getTemperature(int8_t heater)
   if(heater < 0 || heater >= HOT_ENDS)
     return ABS_ZERO;
   float r = (float)getRawTemperature(heater);
-  r = ABS_ZERO + eBeta/log( (r*eRs/(AD_RANGE - r)) /eRInf );
+  r = ABS_ZERO + eBeta[heater]/log( (r*eRs[heater]/(AD_RANGE - r)) /eRInf[heater] );
   currentTemps[heater] = r;
   if(r > HEATER_MAXTEMP)
   {
@@ -501,33 +502,33 @@ void command()
       break;
       
     case SET_B:
-      eBeta = atof(&buf[2]);
-      debugMessage("Set eBeta to: ", eBeta);
+      eBeta[dh] = atof(&buf[2]);
+      debugMessage("Set eBeta to: ", eBeta[dh]);
       break;
     
     case SET_R:
-      eRs = atof(&buf[2]);
-      debugMessage("Set eRs to: ", eRs);
+      eRs[dh] = atof(&buf[2]);
+      debugMessage("Set eRs to: ", eRs[dh]);
       break;
     
     case SET_I:
-      eRInf = atof(&buf[2]);
-      debugMessage("Set eRInf to: ", eRInf);
+      eRInf[dh] = atof(&buf[2]);
+      debugMessage("Set eRInf to: ", eRInf[dh]);
       break;
       
     case GET_B:
-      talkToMaster(eBeta);
-      debugMessage("Sent eBeta: ", eBeta);
+      talkToMaster(eBeta[dh]);
+      debugMessage("Sent eBeta: ", eBeta[dh]);
       break;
     
     case GET_R:
-      talkToMaster(eRs);
-      debugMessage("Sent eRs: ", eRs);
+      talkToMaster(eRs[dh]);
+      debugMessage("Sent eRs: ", eRs[dh]);
       break;
     
     case GET_I:
-      talkToMaster(eRInf);
-      debugMessage("Sent eRInf: ", eRInf);
+      talkToMaster(eRInf[dh]);
+      debugMessage("Sent eRInf: ", eRInf[dh]);
       break;
       
     case DRIVE:  // Set the current drive
