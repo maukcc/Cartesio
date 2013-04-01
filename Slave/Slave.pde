@@ -13,7 +13,7 @@
 char* strplus(char* a, char* b);
 void error(char* s);
 void stopSlave();
-void setTemperature(int8_t heater, int t);
+void setTemperature(int8_t heater, const float& t);
 int getRawTemperature(int8_t heater);
 float getTemperature(int8_t heater);
 int getRawTargetTemperature(float t);
@@ -46,12 +46,12 @@ int8_t enables[DRIVES] = ENABLES;
 int8_t therms[HOT_ENDS] = THERMS;
 int8_t heaters[HOT_ENDS] = HEATERS;
 volatile int8_t currentDrive = NO_DRIVE;
-
+long precision[] = {0,10,100,1000,10000,100000,1000000,10000000,100000000};
 
 // Heater arrays
 
 float setTemps[HOT_ENDS];
-int intSetTemps[HOT_ENDS];
+//int intSetTemps[HOT_ENDS];
 int currentTemps[HOT_ENDS];
 
 // PID variables
@@ -148,13 +148,25 @@ inline void error(char* s)
   DEBUG_IO.println(strplus("ERROR: ", s));
 }
 
+char* ftoa(char *a, const float& f, int prec)
+{
+  char *ret = a;
+  long heiltal = (long)f;
+  itoa(heiltal, a, 10);
+  while (*a != '\0') a++;
+  *a++ = '.';
+  long decimal = abs((long)((f - heiltal) * precision[prec]));
+  itoa(decimal, a, 10);
+  return ret;
+}
+
 void stopSlave()
 {
   int8_t i;
   for(i = 0; i < DRIVES; i++)
     disable(i);
   for(i = 0; i < HOT_ENDS; i++)
-    setTemperature(i, 0); 
+    setTemperature(i, 0.0); 
   if(debug)
     DEBUG_IO.println("Stopped");
 }
@@ -189,6 +201,16 @@ inline void debugMessage(char* s1, int i1, char* s2, int i2)
    return;
   DEBUG_IO.print(s1);
   DEBUG_IO.print(i1);
+  DEBUG_IO.print(s2);
+  DEBUG_IO.println(i2);  
+}
+
+inline void debugMessage(char* s1, float f1, char* s2, int i2)
+{
+  if(!debug)
+   return;
+  DEBUG_IO.print(s1);
+  DEBUG_IO.print(f1);
   DEBUG_IO.print(s2);
   DEBUG_IO.println(i2);  
 }
@@ -260,12 +282,12 @@ void clearMasterChannel()
 */
 
 
-inline void setTemperature(int8_t heater, int t)
+inline void setTemperature(int8_t heater, const float& t)
 {
   if(heater < 0 || heater >= HOT_ENDS)
     return;
   setTemps[heater]=t;
-  intSetTemps[heater]=(int)t;
+  //intSetTemps[heater]=(int)t;
   
 }
 
@@ -443,13 +465,14 @@ void command()
       break;
       
     case GET_TT: // Get target temperature of an extruder
-      talkToMaster(intSetTemps[dh]);
-      debugMessage("Sent target temp: ", intSetTemps[dh], " for extruder ", dh);
+      //talkToMaster(intSetTemps[dh]);
+      talkToMaster(setTemps[dh]);
+      debugMessage("Sent target temp: ", setTemps[dh], " for extruder ", dh);
       break;      
     
     case SET_T: // Set temperature of an extruder
-      setTemperature(dh, atoi(&buf[2]));
-      debugMessage("Set target temp to: ", intSetTemps[dh], " for extruder ", dh);
+      setTemperature(dh, atof(&buf[2]));
+      debugMessage("Set target temp to: ", setTemps[dh], " for extruder ", dh);
       break;
       
     case SET_B:

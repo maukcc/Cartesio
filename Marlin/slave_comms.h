@@ -35,6 +35,7 @@ void clearSlaveChannel();
 void talkToSlave(char s[]);
 char* listenToSlave();
 void setup_slave();
+char* ftoa(char *a, const float& f, int prec);
 
 FORCE_INLINE float getFloatFromSlave(uint8_t device, char command)
 {
@@ -56,7 +57,7 @@ FORCE_INLINE void slaveSetTargetHotend(const float &celsius, uint8_t heater)
 {
 	slaveXmitBuffer[0] = SET_T;
 	slaveXmitBuffer[1] = '0' + heater - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
-	itoa((int)celsius, &slaveXmitBuffer[2], 10); // Let's not worry about decimal places for the moment...
+	ftoa(&slaveXmitBuffer[2], celsius, 1); 
 	talkToSlave(slaveXmitBuffer);	
 }
 
@@ -70,17 +71,6 @@ FORCE_INLINE float slaveDegTargetHotend(uint8_t heater)
  	return getFloatFromSlave(heater, GET_TT);
 }
 
-FORCE_INLINE char* ftoa(char *a, const float& f, int prec)
-{
-  char *ret = a;
-  long heiltal = (long)f;
-  itoa(heiltal, a, 10);
-  while (*a != '\0') a++;
-  *a++ = '.';
-  long decimal = abs((long)((f - heiltal) * precision[prec]));
-  itoa(decimal, a, 10);
-  return ret;
-}
 
 FORCE_INLINE void setSlaveExtruderThermistor(int8_t heater, const float& b, const float& r, const float& i)
 {
@@ -94,7 +84,7 @@ FORCE_INLINE void setSlaveExtruderThermistor(int8_t heater, const float& b, cons
 	talkToSlave(slaveXmitBuffer);
         delay(1);
         slaveXmitBuffer[0] = SET_I;
-        ftoa(&slaveXmitBuffer[2], i, 4);
+        ftoa(&slaveXmitBuffer[2], i, 6);
 	talkToSlave(slaveXmitBuffer);
 }
 

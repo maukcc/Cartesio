@@ -46,4 +46,16 @@ void setup_slave()
     return;
 }
 
+char* ftoa(char *a, const float& f, int prec)
+{
+  char *ret = a;
+  long heiltal = (long)f;
+  itoa(heiltal, a, 10);
+  while (*a != '\0') a++;
+  *a++ = '.';
+  long decimal = abs((long)((f - heiltal) * precision[prec]));
+  itoa(decimal, a, 10);
+  return ret;
+}
+
 #endif
