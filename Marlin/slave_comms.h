@@ -84,7 +84,7 @@ FORCE_INLINE void setSlaveExtruderThermistor(int8_t heater, const float& b, cons
 	talkToSlave(slaveXmitBuffer);
         delay(1);
         slaveXmitBuffer[0] = SET_I;
-        ftoa(&slaveXmitBuffer[2], i, 6);
+        ftoa(&slaveXmitBuffer[2], i, 4);
 	talkToSlave(slaveXmitBuffer);
 }
 
