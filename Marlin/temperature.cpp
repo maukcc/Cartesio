@@ -144,6 +144,40 @@ float getBedBeta() { return bBeta; }
 float getBedRs() { return bRs; }
 float getBedRInf() { return bRInf; }
 
+void getThermistor(int eb, float &beta, float &resistor, float &thermistor, float &inf)
+{
+  int h = eb;
+  if(!h)
+  {
+   //get BED thermistor
+   beta = getBedBeta();
+   resistor = getBedRs();
+   inf = getBedRInf();
+  } else
+  {
+    // Extruder thermistor
+    h--;
+    beta = getExtruderBeta(h);
+    resistor = getExtruderRs(h);
+    inf = getExtruderRInf(h);         
+  }
+  thermistor = inf/(exp(-beta/298.15));
+}
+
+
+void setThermistor(int eb, const float &beta, const float &resistor, const float &thermistor, float &inf)
+{
+  inf = thermistor*exp(-beta/298.15);
+  int h = eb;
+  if(!h)
+    setBedThermistor(beta, resistor, inf);
+  else
+  {
+    h--;
+    setExtruderThermistor(h, beta, resistor, inf);
+  }
+}
+
 
 void PID_autotune(float temp)
 {
@@ -256,12 +290,14 @@ void updatePID()
 }
 
 #ifdef PIDTEMP
-void getPIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi)
+void getPIDValues(int eb, float &Kpi, float &Kii, float &Kdi, float &Kmi)
 {
+  //TODO - also allow Bed PID updating
+  eb--;
 #ifdef REPRAPPRO_MULTIMATERIALS
-  if(e)
+  if(eb)
   {
-    getSlavePIDValues(e, Kpi, Kii, Kdi, Kmi);
+    getSlavePIDValues(eb, Kpi, Kii, Kdi, Kmi);
     return;
   }
 #endif
@@ -271,12 +307,14 @@ void getPIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi)
   Kmi = Ki_Max;
 }
 
-void setPIDValues(int e, const float &Kpi, const float &Kii, const float &Kdi, const float &Kmi)
+void setPIDValues(int eb, const float &Kpi, const float &Kii, const float &Kdi, const float &Kmi)
 {
+  //TODO - also allow Bed PID updating
+  eb--;
 #ifdef REPRAPPRO_MULTIMATERIALS
-  if(e)
+  if(eb)
   {
-    setSlavePIDValues(e, Kpi, Kii, Kdi, Kmi);
+    setSlavePIDValues(eb, Kpi, Kii, Kdi, Kmi);
     return;
   } else
 #endif

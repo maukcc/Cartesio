@@ -46,6 +46,8 @@ float getExtruderRInf(int8_t e);
 float getBedBeta();
 float getBedRs();
 float getBedRInf();
+void getThermistor(int eb, float &beta, float &resistor, float &thermistor, float &inf);
+void setThermistor(int eb, const float &beta, const float &resistor, const float &thermistor, float &inf);
 
 #ifdef PIDTEMP
 void getPIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi);

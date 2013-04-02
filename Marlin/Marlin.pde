@@ -1408,7 +1408,7 @@ void process_commands()
       if(code_seen('H'))
       {
         float Kpi, Kii, Kdi, Kmi;
-        int hval = code_value() - 1; // Extruder number (0 = bed, 1 = master, 2... = slave's) TODO - also allow Bed PID updating
+        int hval = code_value(); // Extruder number (0 = bed, 1 = master, 2... = slave's) 
         getPIDValues(hval, Kpi, Kii, Kdi, Kmi);
         if(code_seen('P')) Kpi = code_value();
         if(code_seen('I')) Kii = code_value();
@@ -1455,59 +1455,29 @@ void process_commands()
     }
     break;
     case 304: // Set thermistor parameters
-    {
       // M304 H0 B3960 R4700
       // M304 H1 Bb Rr
+      // H0 = bed; H1 = master's hot end; H2... = slave's hot ends
       if (code_seen('H'))
       {
        float beta, resistor, thermistor, inf;
        int hval = code_value();
-       if(!hval)
-       {
-        //set BED thermistor
-        beta = getBedBeta();
-        resistor = getBedRs();
-        inf = getBedRInf();
-        thermistor = inf/(exp(-beta/298.15));
-        if(code_seen('B')) beta = code_value();
-        if(code_seen('R')) resistor = code_value();
-        if(code_seen('T')) thermistor = code_value();
-        inf = ( thermistor*exp(-beta/298.15) );
-        setBedThermistor(beta, resistor, inf);
-        SERIAL_PROTOCOL(MSG_OK);
-        SERIAL_PROTOCOL(" M304 H0 B");
-        SERIAL_PROTOCOL(beta);
-        SERIAL_PROTOCOL(" R");
-        SERIAL_PROTOCOL(resistor);
-        SERIAL_PROTOCOL(" T");
-        SERIAL_PROTOCOL(thermistor);
-        SERIAL_PROTOCOLLN("");
-       }else
-       {
-        //set extruder thermistor
-        hval--;
-        beta = getExtruderBeta(hval);
-        resistor = getExtruderRs(hval);
-        inf = getExtruderRInf(hval);
-        thermistor = inf/(exp(-beta/298.15));
-        if(code_seen('B')) beta = code_value();
-        if(code_seen('R')) resistor = code_value();
-        if(code_seen('T')) thermistor = code_value();
-        inf = ( thermistor*exp(-beta/298.15) );
-        setExtruderThermistor(hval, beta, resistor, inf);
-        SERIAL_PROTOCOL(MSG_OK);
-        SERIAL_PROTOCOL(" M304 H");
-        SERIAL_PROTOCOL(hval);
-        SERIAL_PROTOCOL(" B");
-        SERIAL_PROTOCOL(beta);
-        SERIAL_PROTOCOL(" R");
-        SERIAL_PROTOCOL(resistor);
-        SERIAL_PROTOCOL(" T");
-        SERIAL_PROTOCOL(thermistor);
-        SERIAL_PROTOCOLLN("");
-       }
-     }
-    }
+       getThermistor(hval, beta, resistor, thermistor, inf);
+       if(code_seen('B')) beta = code_value();
+       if(code_seen('R')) resistor = code_value();
+       if(code_seen('T')) thermistor = code_value();
+       setThermistor(hval, beta, resistor, thermistor, inf);
+       SERIAL_PROTOCOL(MSG_OK);
+       SERIAL_PROTOCOL(" M304 H");
+       SERIAL_PROTOCOL(hval);
+       SERIAL_PROTOCOL(" B");
+       SERIAL_PROTOCOL(beta);
+       SERIAL_PROTOCOL(" R");
+       SERIAL_PROTOCOL(resistor);
+       SERIAL_PROTOCOL(" T");
+       SERIAL_PROTOCOL(thermistor);
+       SERIAL_PROTOCOLLN("");
+      } 
     break;    
     
  
