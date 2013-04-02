@@ -106,8 +106,9 @@
 #define KP { KPV,  KPV }
 #define KI { KIV, KIV }
 #define KD { KDV, KDV }
-#define PID_I_MAX (125.0/KIV)
-#define PID_I_MIN 0.0
+#define PIDM (125.0/KIV)
+#define PID_I_MAX { PIDM, PIDM }
+#define PID_I_MIN { 0.0, 0.0 }
 
 #define TEST_POWER 0.25
 #define TEST_INTERVAL 1

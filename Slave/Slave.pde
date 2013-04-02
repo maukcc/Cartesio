@@ -11,7 +11,7 @@
 // Function prototypes
 
 char* strplus(char* a, char* b);
-void error(char* s);
+void error(boolean stp, char* s);
 void stopSlave();
 void setTemperature(int8_t heater, const float& t);
 int getRawTemperature(int8_t heater);
@@ -37,7 +37,7 @@ char scratch[2*BUFLEN];
 int bp;
 boolean debug;
 boolean inMessage;
-boolean stopped = true;
+boolean errorStopped = true;
 
 // Pin arrays
 
@@ -60,6 +60,8 @@ float currentTemps[HOT_ENDS];
 float Kp[HOT_ENDS] = KP;
 float Ki[HOT_ENDS] = KI;
 float Kd[HOT_ENDS] = KD;
+float PidMax[HOT_ENDS] = PID_I_MAX;
+float PidMin[HOT_ENDS] = PID_I_MIN;
 float temp_iState[HOT_ENDS];
 float temp_dState[HOT_ENDS];
 float lastTemp[HOT_ENDS];
@@ -92,7 +94,7 @@ void setup()
 {
   int8_t i;
     
-  stopped = false;
+  errorStopped = false;
   inMessage = false;
 
   DEBUG_IO.begin(DEBUG_BAUD);
@@ -148,9 +150,13 @@ inline char* strplus(char* a, char* b)
   return strcat(scratch, b);
 }
 
-inline void error(char* s)
+inline void error(boolean fatal, char* s)
 {
   DEBUG_IO.println(strplus("ERROR: ", s));
+  if(!fatal)
+    return;
+  stopSlave();
+  errorStopped = true;
 }
 
 char* ftoa(char *a, const float& f, int prec)
@@ -218,7 +224,7 @@ inline void debugMessage(char* s1, float f1, char* s2, int i2)
 
 void stopSlave()
 {
-  if(stopped)
+  if(errorStopped)
     return;
   int8_t i;
   for(i = 0; i < DRIVES; i++)
@@ -226,7 +232,6 @@ void stopSlave()
   for(i = 0; i < HOT_ENDS; i++)
     setTemperature(i, 0.0); 
   debugMessage("Stopped");
-  stopped = true;
 }
 
 inline void talkToMaster(int i)
@@ -280,7 +285,7 @@ inline void incomming()
     {
       bp = BUFLEN-1;
       buf[bp] = 0;
-      error(strplus("command overflow: ", buf));
+      error(false, strplus("command overflow: ", buf));
     } 
 }
 
@@ -321,16 +326,13 @@ inline float getTemperature(int8_t heater)
   float r = (float)getRawTemperature(heater);
   r = ABS_ZERO + eBeta[heater]/log( (r*eRs[heater]/(AD_RANGE - r)) /eRInf[heater] );
   currentTemps[heater] = r;
+  
   if(r > HEATER_MAXTEMP)
-  {
-    error("max temp exceeded");
-    stopSlave();
-  }
+    error(true, "max temp exceeded");
+
   if(r < HEATER_MINTEMP)
-  {
-    error("min temp deceeded");
-    stopSlave();
-  }    
+    error(true, "min temp deceeded");
+  
   return r;
 }
 
@@ -383,8 +385,8 @@ inline float pid(int8_t heater)
    }  
    
    temp_iState[heater] += error;
-   if (temp_iState[heater] < PID_I_MIN) temp_iState[heater] = PID_I_MIN;
-   if (temp_iState[heater] > PID_I_MAX) temp_iState[heater] = PID_I_MAX;
+   if (temp_iState[heater] < PidMin[heater]) temp_iState[heater] = PidMin[heater];
+   if (temp_iState[heater] > PidMax[heater]) temp_iState[heater] = PidMax[heater];
    
    temp_dState[heater] =  Kd[heater]*(current - lastTemp[heater])*(1.0 - D_MIX) + D_MIX*temp_dState[heater]; 
 
@@ -407,7 +409,7 @@ void heatControl()
 
 inline void tempCheck()
 {    
-  if((long)(time - millis()) > 0  || stopped)
+  if((long)(time - millis()) > 0  || errorStopped)
     return;
   time += TEMP_INTERVAL;
     
@@ -424,7 +426,7 @@ inline void tempCheck()
 
 inline void stepExtruder(int8_t drive)
 {
-  if(drive < 0 || drive >= DRIVES || stopped)
+  if(drive < 0 || drive >= DRIVES || errorStopped)
     return;
   digitalWrite(steps[drive],1);
   digitalWrite(steps[drive],0);
@@ -432,21 +434,21 @@ inline void stepExtruder(int8_t drive)
 
 inline void setDirection(int8_t drive, bool dir)
 {
-  if(drive < 0 || drive >= DRIVES || stopped)
+  if(drive < 0 || drive >= DRIVES || errorStopped)
     return;
   digitalWrite(dirs[drive], dir);
 }
 
 inline void enable(int8_t drive)
 {
-  if(drive < 0 || drive >= DRIVES || stopped)
+  if(drive < 0 || drive >= DRIVES || errorStopped)
     return;
   digitalWrite(enables[drive], ENABLE);
 }
 
 inline void disable(int8_t drive)
 {
- if(drive < 0 || drive >= DRIVES || stopped)
+ if(drive < 0 || drive >= DRIVES || errorStopped)
    return;
  digitalWrite(enables[drive], DISABLE);
 }
@@ -458,7 +460,7 @@ inline void disable(int8_t drive)
 
 void heaterTest(int8_t h)
 {
-  if(stopped)
+  if(errorStopped)
     return;
     
   analogWrite(heaters[h], (int)(TEST_POWER*PID_MAX));
@@ -491,7 +493,6 @@ void command()
       break;
       
     case GET_TT: // Get target temperature of an extruder
-      //talkToMaster(intSetTemps[dh]);
       talkToMaster(setTemps[dh]);
       debugMessage("Sent target temp: ", setTemps[dh], " for extruder ", dh);
       break;      
@@ -548,29 +549,10 @@ void command()
       setDirection(dh, BACKWARDS);
       debugMessage("Backwards set for: ", dh);
       break;
-    
-    case SET_PID: // Set PID parameters
-    /*
-        if(code_seen('P')) Kp = code_value();
-        if(code_seen('I')) Ki = code_value();
-        if(code_seen('D')) Kd = code_value();
-        if(code_seen('F')) pid_max = code_value();
-        if(code_seen('Z')) nzone = code_value();
-        if(code_seen('W')) pid_i_max = code_value();
-        temp_iState_min = -pid_i_max / Ki;
-        temp_iState_max = pid_i_max / Ki;
-        */
-        break;
         
     case DEBUG:
       debug = dh;
       debugMessage("Debug set to: ", debug);
-      break;
-    
-    case Q_DDA: // Queue DDA parameters
-      break;
-    
-    case SET_DDA: // Set DDA parameters from head of queue
       break;
     
     case STOP: // Shut everything down; carry on listening for commands
@@ -586,17 +568,62 @@ void command()
       disable(dh);
       debugMessage("Drive turned off: ", dh);
       break;
-
-    case NO_OP:
-    case 0:
+      
+    case GET_KP:
+      talkToMaster(Kp[dh]);
+      debugMessage("Sent Kp: ", Kp[dh]);
       break;
+      
+    case GET_KI:
+      talkToMaster((float)(Ki[dh]/(0.001*(float)TEMP_INTERVAL)));
+      debugMessage("Sent Ki: ", Ki[dh]);
+      break;
+      
+    case GET_KD:
+      talkToMaster((float)(Kd[dh]*0.001*(float)TEMP_INTERVAL));
+      debugMessage("Sent Kd: ", Kd[dh]);
+      break;
+      
+    case GET_KW:
+      talkToMaster(PidMax[dh]*Ki[dh]);
+      debugMessage("Sent W: ", PidMax[dh]*Ki[dh]);
+      break;
+      
+    case SET_KP:
+      Kp[dh] = atof(&buf[2]);
+      debugMessage("Set Kp to: ", Kp[dh]);
+      break;
+      
+    case SET_KI:
+      PidMax[dh] = PidMax[dh]*Ki[dh];
+      Ki[dh] = atof(&buf[2]);
+      debugMessage("Set Ki to: ", Ki[dh]);
+      Ki[dh] = Ki[dh]*0.001*(float)TEMP_INTERVAL;
+      PidMax[dh] = constrain(PidMax[dh]/Ki[dh], 0.0, 255.0);
+      break;
+      
+    case SET_KD:
+      Kd[dh] = atof(&buf[2]);
+      debugMessage("Set Kd to: ", Kd[dh]);
+      Kd[dh] = Kd[dh]/(0.001*(float)TEMP_INTERVAL);
+      break;
+      
+    case SET_KW:
+      PidMax[dh] = atof(&buf[2]);
+      debugMessage("Set w to: ", PidMax[dh]);
+      PidMax[dh] = constrain(PidMax[dh], 0.0, 255.0)/Ki[dh];
+      break;    
       
     case H_TEST:
       heaterTest(dh);
       break;
       
+    case NO_OP:
+    case 0:
+      break;
+      
     default:
-      error(strplus("dud command: ", buf));
+      error(false, strplus("dud command: ", buf));
       break;
   }
 }

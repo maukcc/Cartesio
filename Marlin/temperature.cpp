@@ -254,6 +254,55 @@ void updatePID()
   }
 #endif
 }
+
+#ifdef PIDTEMP
+void getPIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi)
+{
+#ifdef REPRAPPRO_MULTIMATERIALS
+  if(e)
+  {
+    getSlavePIDValues(e, Kpi, Kii, Kdi, Kmi);
+    return;
+  }
+#endif
+  Kpi = Kp;
+  Kii = Ki/PID_dT;
+  Kdi = Kd*PID_dT;
+  Kmi = Ki_Max*Ki;
+}
+
+void setPIDValues(int e, const float &Kpi, const float &Kii, const float &Kdi, const float &Kmi)
+{
+#ifdef REPRAPPRO_MULTIMATERIALS
+  if(e)
+  {
+    setSlavePIDValues(e, Kpi, Kii, Kdi, Kmi);
+    return;
+  } else
+#endif
+  {
+    Kp = Kpi;
+    Ki = Kii;
+    Kd = Kdi;
+    Ki_Max = constrain(Kmi, 0, 255);  
+    
+    SERIAL_PROTOCOL("ok");
+    SERIAL_PROTOCOL(" p:");
+    SERIAL_PROTOCOL(Kp);
+    SERIAL_PROTOCOL(" i:");
+    SERIAL_PROTOCOL(Ki);
+    Ki = Ki*PID_dT;
+    SERIAL_PROTOCOL(" d:");
+    SERIAL_PROTOCOL(Kd);
+    Kd = Kdi/PID_dT;
+    SERIAL_PROTOCOL(" w:");
+    SERIAL_PROTOCOL(Ki_Max);
+    SERIAL_PROTOCOLLN("");
+    updatePID();
+  }
+}
+
+#endif
   
 int getHeaterPower(int heater) {
   return soft_pwm[heater];

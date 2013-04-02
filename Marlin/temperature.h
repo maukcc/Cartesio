@@ -47,6 +47,11 @@ float getBedBeta();
 float getBedRs();
 float getBedRInf();
 
+#ifdef PIDTEMP
+void getPIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi);
+void setPIDValues(int e, const float &Kpi, const float &Kii, const float &Kdi, const float &Kmi);
+#endif
+
 //low leven conversion routines
 // do not use this routines and variables outsie of temperature.cpp
 int temp2analog(int celsius, uint8_t e);

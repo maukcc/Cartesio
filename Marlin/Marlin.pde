@@ -1405,24 +1405,16 @@ void process_commands()
 
     #ifdef PIDTEMP
     case 301: // M301
+      if(code_seen('H'))
       {
-        if(code_seen('P')) Kp = code_value();
-        if(code_seen('I')) Ki = code_value()*PID_dT;
-        if(code_seen('D')) Kd = code_value()/PID_dT;
-        if(code_seen('W')) Ki_Max = constrain(code_value(),0,255);
-
-        updatePID();
-        SERIAL_PROTOCOL(MSG_OK);
-		SERIAL_PROTOCOL(" p:");
-        SERIAL_PROTOCOL(Kp);
-        SERIAL_PROTOCOL(" i:");
-        SERIAL_PROTOCOL(Ki/PID_dT);
-        SERIAL_PROTOCOL(" d:");
-        SERIAL_PROTOCOL(Kd*PID_dT);
-        SERIAL_PROTOCOL(" w:");
-        SERIAL_PROTOCOL(Ki_Max);
-
-        SERIAL_PROTOCOLLN("");
+        float Kpi, Kii, Kdi, Kmi;
+        int hval = code_value() - 1; // TODO - also allow Bed PID updating
+        getPIDValues(hval, Kpi, Kii, Kdi, Kmi);
+        if(code_seen('P')) Kpi = code_value();
+        if(code_seen('I')) Kii = code_value();
+        if(code_seen('D')) Kdi = code_value();
+        if(code_seen('W')) Kmi = code_value();
+        setPIDValues(hval, Kpi, Kii, Kdi, Kmi);
       }
       break;
     #endif //PIDTEMP
