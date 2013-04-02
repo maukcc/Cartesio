@@ -268,7 +268,7 @@ void getPIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi)
   Kpi = Kp;
   Kii = Ki/PID_dT;
   Kdi = Kd*PID_dT;
-  Kmi = Ki_Max*Ki;
+  Kmi = Ki_Max;
 }
 
 void setPIDValues(int e, const float &Kpi, const float &Kii, const float &Kdi, const float &Kmi)

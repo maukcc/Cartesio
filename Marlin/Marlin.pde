@@ -1408,7 +1408,7 @@ void process_commands()
       if(code_seen('H'))
       {
         float Kpi, Kii, Kdi, Kmi;
-        int hval = code_value() - 1; // TODO - also allow Bed PID updating
+        int hval = code_value() - 1; // Extruder number (0 = bed, 1 = master, 2... = slave's) TODO - also allow Bed PID updating
         getPIDValues(hval, Kpi, Kii, Kdi, Kmi);
         if(code_seen('P')) Kpi = code_value();
         if(code_seen('I')) Kii = code_value();
