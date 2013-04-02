@@ -190,7 +190,7 @@ float modified_destination[NUM_AXIS] = {  0.0, 0.0, 0.0, 0.0};
 //=============================private variables=============================
 //===========================================================================
 const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
-static bool home_all_axis = true;
+static bool home_all_axes = true;
 static long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
 
 static bool relative_mode = false;  //Determines Absolute or Relative Coordinates
@@ -840,7 +840,7 @@ void process_commands()
         }
       break;
   
-    case 28: //G28 Home all Axis one at a time
+    case 28: //G28 Home all axes one at a time
       saved_feedrate = feedrate;
       saved_feedmultiply = feedmultiply;
       feedmultiply = 100;
@@ -852,23 +852,31 @@ void process_commands()
         destination[i] = current_position[i];
       }
       feedrate = 0.0;
-      home_all_axis = !((code_seen(axis_codes[X_AXIS])) || (code_seen(axis_codes[Y_AXIS])) || (code_seen(axis_codes[Z_AXIS])));
+      home_all_axes = !((code_seen(axis_codes[X_AXIS])) || (code_seen(axis_codes[Y_AXIS])) || (code_seen(axis_codes[Z_AXIS])));
 
       
-      if((home_all_axis) || (code_seen(axis_codes[X_AXIS]))) 
+      if((home_all_axes) || (code_seen(axis_codes[X_AXIS]))) 
       {
         HOMEAXIS(X);
+        current_position[X_AXIS] = X_HOME_POS + extruder_x_off[0] - extruder_x_off[active_extruder];
+        destination[X_AXIS] = current_position[X_AXIS];
       }
 
-      if((home_all_axis) || (code_seen(axis_codes[Y_AXIS]))) {
+      if((home_all_axes) || (code_seen(axis_codes[Y_AXIS]))) 
+      {
        HOMEAXIS(Y);
+       current_position[Y_AXIS] = Y_HOME_POS + extruder_y_off[0] - extruder_y_off[active_extruder];
+       destination[Y_AXIS] = current_position[Y_AXIS];
       }
       
-      if((home_all_axis) || (code_seen(axis_codes[Z_AXIS]))) {
+      if((home_all_axes) || (code_seen(axis_codes[Z_AXIS]))) 
+      {
         HOMEAXIS(Z);
+        current_position[Z_AXIS] = Z_HOME_POS + extruder_z_off[0] - extruder_z_off[active_extruder];
+        destination[Z_AXIS] = current_position[Z_AXIS];
       }
       
-      if((home_all_axis) || code_seen(axis_codes[X_AXIS])) 
+      if((home_all_axes) || code_seen(axis_codes[X_AXIS])) 
       {
         if(code_value_long() != 0) {
           current_position[X_AXIS]=code_value();
@@ -876,14 +884,14 @@ void process_commands()
         current_position[X_AXIS]+=add_homeing[0];
       }
 
-      if((home_all_axis) || code_seen(axis_codes[Y_AXIS])) {
+      if((home_all_axes) || code_seen(axis_codes[Y_AXIS])) {
         if(code_value_long() != 0) {
           current_position[Y_AXIS]=code_value();
         }
         current_position[Y_AXIS]+=add_homeing[1];
       }
 
-      if((home_all_axis) || code_seen(axis_codes[Z_AXIS])) {
+      if((home_all_axes) || code_seen(axis_codes[Z_AXIS])) {
         if(code_value_long() != 0) {
           current_position[Z_AXIS]=code_value();
         }
