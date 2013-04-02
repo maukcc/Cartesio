@@ -346,6 +346,10 @@ void setup()
     fromsd[i] = false;
   }
   
+  #ifdef REPRAPPRO_MULTIMATERIALS
+    setup_slave();
+  #endif
+  
   EEPROM_RetrieveSettings(); // loads data from EEPROM if available
 
   for(int8_t i=0; i < NUM_AXIS; i++)
@@ -363,11 +367,6 @@ void setup()
   probe_init(); //Initializes probe if PROBE_PIN is defined
   FPUTransform_init(); //Initializes FPU when UMFPUSUPPORT defined
   setup_photpin();
-  
-#ifdef REPRAPPRO_MULTIMATERIALS
-  setup_slave();
-#endif
-
 }
 
 

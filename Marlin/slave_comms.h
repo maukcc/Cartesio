@@ -71,6 +71,38 @@ FORCE_INLINE float slaveDegTargetHotend(uint8_t heater)
  	return getFloatFromSlave(heater, GET_TT);
 }
 
+FORCE_INLINE void getSlavePIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi)
+{
+  Kpi = getFloatFromSlave(e, GET_KP);
+  delay(1);
+  Kii = getFloatFromSlave(e, GET_KI);
+  delay(1);
+  Kdi = getFloatFromSlave(e, GET_KD);
+  delay(1);
+  Kmi = getFloatFromSlave(e, GET_KW);
+}
+
+FORCE_INLINE void setSlavePIDValues(int e, const float &Kpi, const float &Kii, const float &Kdi, const float &Kmi)
+{
+  slaveXmitBuffer[0] = SET_KP;
+  slaveXmitBuffer[1] = '0' + e - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
+  ftoa(&slaveXmitBuffer[2], Kpi, 4); 
+  talkToSlave(slaveXmitBuffer);
+  delay(1);
+  slaveXmitBuffer[0] = SET_KI;
+  ftoa(&slaveXmitBuffer[2], Kii, 4); 
+  talkToSlave(slaveXmitBuffer);
+  delay(1);
+  slaveXmitBuffer[0] = SET_KD;
+  ftoa(&slaveXmitBuffer[2], Kdi, 4); 
+  talkToSlave(slaveXmitBuffer);
+  delay(1);
+  slaveXmitBuffer[0] = SET_KW;
+  ftoa(&slaveXmitBuffer[2], Kmi, 4); 
+  talkToSlave(slaveXmitBuffer);  
+}
+
+
 
 FORCE_INLINE void setSlaveExtruderThermistor(int8_t heater, const float& b, const float& r, const float& i)
 {
@@ -177,37 +209,6 @@ FORCE_INLINE void slaveDriveOn(uint8_t drive)
 	slaveXmitBuffer[2] = 0;
 	talkToSlave(slaveXmitBuffer);
         driveOn[drive] = true;
-}
-
-FORCE_INLINE void getSlavePIDValues(int e, float &Kpi, float &Kii, float &Kdi, float &Kmi)
-{
-  Kpi = getFloatFromSlave(e, GET_KP);
-  delay(1);
-  Kii = getFloatFromSlave(e, GET_KI);
-  delay(1);
-  Kdi = getFloatFromSlave(e, GET_KD);
-  delay(1);
-  Kmi = getFloatFromSlave(e, GET_KW);
-}
-
-FORCE_INLINE void setSlavePIDValues(int e, const float &Kpi, const float &Kii, const float &Kdi, const float &Kmi)
-{
-  slaveXmitBuffer[0] = SET_KP;
-  slaveXmitBuffer[1] = '0' + e - 1; // Our extruder 0 is the Master's extruder; slave's e0 is our e1
-  ftoa(&slaveXmitBuffer[2], Kpi, 4); 
-  talkToSlave(slaveXmitBuffer);
-  delay(1);
-  slaveXmitBuffer[0] = SET_KI;
-  ftoa(&slaveXmitBuffer[2], Kii, 4); 
-  talkToSlave(slaveXmitBuffer);
-  delay(1);
-  slaveXmitBuffer[0] = SET_KD;
-  ftoa(&slaveXmitBuffer[2], Kdi, 4); 
-  talkToSlave(slaveXmitBuffer);
-  delay(1);
-  slaveXmitBuffer[0] = SET_KW;
-  ftoa(&slaveXmitBuffer[2], Kmi, 4); 
-  talkToSlave(slaveXmitBuffer);  
 }
 
 
