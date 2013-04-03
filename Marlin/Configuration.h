@@ -9,7 +9,8 @@
 
 // Uncomment ONE of the next two lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
-#define REPRAPPRO_MENDEL
+//#define REPRAPPRO_MENDEL
+#define REPRAPPRO_MENDEL2
 
 // Uncomment ONE of the next three lines - the one for your master controller electronics
 #define REPRAPPRO_MELZI
@@ -23,12 +24,16 @@
 // Uncomment the next line if your machine has more than one extruder
 #define REPRAPPRO_MULTIMATERIALS
 
+
+
 // -------------------------------------------------------------------------------
 
 #ifndef REPRAPPRO_HUXLEY
 #ifndef REPRAPPRO_MENDEL
+#ifndef REPRAPPRO_MENDEL2
 #ifndef REPRAPPRO_WALLACE
-#error Uncomment one of #define REPRAPPRO_HUXLEY, REPRAPPRO_MENDEL or REPRAPPRO_WALLACE at the start of the file Configuration.h
+#error Uncomment one of #define REPRAPPRO_HUXLEY, REPRAPPRO_MENDEL,  REPRAPPRO_MENDEL2 or REPRAPPRO_WALLACE at the start of the file Configuration.h
+#endif
 #endif
 #endif
 #endif
@@ -58,7 +63,7 @@
 //User specified version info of THIS file to display in [Pronterface, etc] terminal window during startup.
 //Implementation of an idea by Prof Braino to inform user that any changes made
 //to THIS file by the user have been successfully uploaded into firmware.
-#define STRING_VERSION_CONFIG_H "2013-03-221-RJ" //Personal revision number for changes to THIS file.
+#define STRING_VERSION_CONFIG_H "2013-04-2-RJ" //Personal revision number for changes to THIS file.
 #define STRING_CONFIG_H_AUTHOR "RepRapPro" //Who made the changes.
 
 // This determines the communication speed of the printer
@@ -121,6 +126,15 @@
 #define BED_BETA 3480.0
 #define BED_NTC 10000.0
 #endif
+
+#ifdef REPRAPPRO_MENDEL2
+// Rapid 61-0446 ; Semitec 103GT-2 All Mendels and Thermistors shipped after 1/4/13
+ #define BED_BETA 4126.0
+ #define BED_RS SERIAL_R
+ #define BED_NTC 10000.0
+ #define BED_R_INF ( BED_NTC*exp(-BED_BETA/298.15) )
+#endif
+
 
 #ifdef REPRAPPRO_HUXLEY
 // Bed thermistor: VISHAY BC COMPONENTS - NTCS0603E3104FXT
@@ -224,6 +238,16 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 #define INVERT_E2_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
 #endif
 
+#ifdef REPRAPPRO_MENDEL2
+#define AXES_MAX_LENGTHS {210, 210, 140}
+#define INVERT_X_DIR true    // for Mendel set to false, for Orca set to true
+#define INVERT_Y_DIR true    // for Mendel set to true, for Orca set to false
+#define INVERT_Z_DIR false     // for Mendel set to false, for Orca set to true
+#define INVERT_E0_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
+#define INVERT_E1_DIR true    // for direct drive extruder v9 set to true, for geared extruder set to false
+#define INVERT_E2_DIR true   // for direct drive extruder v9 set to true, for geared extruder set to false
+#endif
+
 #ifdef REPRAPPRO_HUXLEY
 #define AXES_MAX_LENGTHS {155, 150, 90}
 #define INVERT_X_DIR true    // for Mendel set to false, for Orca set to true
@@ -265,6 +289,19 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 #else
 
+#ifdef REPRAPPRO_MENDEL
+
+#define X_MAX_LENGTH 210  
+#define Y_MAX_LENGTH 210
+#define Z_MAX_LENGTH 110
+#define HOMING_FEEDRATE {10*60, 10*60, 1*60, 0}  // set the homing speeds (mm/min)
+#define FAST_HOME_FEEDRATE {50*60, 50*60, 1*60, 0}  // set the homing speeds (mm/min)
+#define DEFAULT_MAX_FEEDRATE  {500, 500, 3, 45}
+#define DEFAULT_MAX_FEEDRATE          {300, 300, 3, 45}    // (mm/sec)    
+#define DEFAULT_MAX_ACCELERATION      {800,800,30,250}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
+
+#else
+
 #define X_MAX_LENGTH 155
 #define Y_MAX_LENGTH 150
 #define Z_MAX_LENGTH 90
@@ -275,11 +312,12 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 #define DEFAULT_MAX_ACCELERATION      {1000,1000,50,250}    // X, Y, Z, E maximum start speed for accelerated moves. E default values
 
 #endif
+#endif
 
 
 // default settings 
 // X, Y, Z, E steps per mm
-#define DEFAULT_AXIS_STEPS_PER_UNIT    {3200/17/2.032, 3200/17/2.032, 4000, 660}  // Old RepRapPro extruder
+#define DEFAULT_AXIS_STEPS_PER_UNIT    {92.635, 92.635, 4000, 660}  // Old RepRapPro extruder
 
 
 // Defaults changed by the G10 command
