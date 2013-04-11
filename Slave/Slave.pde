@@ -13,6 +13,7 @@
 char* strplus(char* a, char* b);
 void error(boolean stp, char* s);
 void stopSlave();
+void zeroAll();
 void setTemperature(int8_t heater, const float& t);
 int getRawTemperature(int8_t heater);
 float getTemperature(int8_t heater);
@@ -154,6 +155,27 @@ inline char* strplus(char* a, char* b)
   return strcat(scratch, b);
 }
 
+void zeroAll()
+{
+  int8_t i;
+  for(i = 0; i < DRIVES; i++)
+    disable(i);
+  for(i = 0; i < HOT_ENDS; i++)
+  {
+    analogWrite(heaters[i], 0);
+    setTemperature(i, ABS_ZERO);
+  } 
+}
+
+void stopSlave()
+{
+  zeroAll();
+  if(errorStopped)
+    return;
+  debugMessage("Stopped");
+}
+
+
 inline void error(boolean fatal, char* s)
 {
   DEBUG_IO.println(strplus("ERROR: ", s));
@@ -224,18 +246,6 @@ inline void debugMessage(char* s1, float f1, char* s2, int i2)
   DEBUG_IO.print(f1);
   DEBUG_IO.print(s2);
   DEBUG_IO.println(i2);  
-}
-
-void stopSlave()
-{
-  if(errorStopped)
-    return;
-  int8_t i;
-  for(i = 0; i < DRIVES; i++)
-    disable(i);
-  for(i = 0; i < HOT_ENDS; i++)
-    setTemperature(i, 0.0); 
-  debugMessage("Stopped");
 }
 
 inline void talkToMaster(int i)
@@ -310,8 +320,6 @@ inline void setTemperature(int8_t heater, const float& t)
   if(heater < 0 || heater >= HOT_ENDS)
     return;
   setTemps[heater]=t;
-  //intSetTemps[heater]=(int)t;
-  
 }
 
 
@@ -336,7 +344,7 @@ inline float getTemperature(int8_t heater)
   else
     dudTempCount[heater] = 0;
  
-  if(dudTempCount[heater] > 3)
+  if(dudTempCount[heater] > 3 && !errorStopped)
     error(true, "temp bounds exceeded");
   
   return r;
@@ -351,29 +359,10 @@ inline float getTargetTemperature(int8_t heater)
 
 
 inline float pid(int8_t heater) 
-{
+{   
    if(heater < 0 || heater >= HOT_ENDS)
      return 0;
-  
-/*   float error, target, current;
-   
-   target = getTargetTemperature(heater);
-   current = getTemperature(heater);   
-   error = target - current;
-
-   float result = Kp[heater]*error + Ki[heater]*temp_iState[heater] + Kd[heater]
-	*(error - temp_dState[heater])/dt;
-
-   temp_iState[heater] += error*dt;
-   temp_dState[heater] = error;
-   
-   if (temp_iState[heater] < -temp_iState_max_min[heater]) temp_iState[heater] = -temp_iState_max_min[heater];
-   if (temp_iState[heater] > temp_iState_max_min[heater]) temp_iState[heater] = temp_iState_max_min[heater];
-   if (result < 0) result = 0;
-   if (result > 1) result = 1;
-   
-   return result;
-*/   
+     
    float error, target, current;
    
    target = getTargetTemperature(heater);
@@ -408,28 +397,56 @@ inline float pid(int8_t heater)
 
 
 void heatControl()
-{ 
+{
+  unsigned int power;
   for(int8_t heater = 0; heater < HOT_ENDS; heater++)
-     analogWrite(heaters[heater], (int)(pid(heater)*PID_MAX));    
+  {
+     power = (unsigned int)(pid(heater)*PID_MAX);
+     if(!errorStopped)
+       analogWrite(heaters[heater], power);
+     else
+       analogWrite(heaters[heater], 0);
+  }    
 }
 
 inline void tempCheck()
 {    
-  if((long)(time - millis()) > 0  || errorStopped)
+  if((long)(time - millis()) > 0)
     return;
   time += TEMP_INTERVAL;
+  
+  heatControl();
     
   if(LED_PIN >= 0)
   {
+    if(errorStopped)
+    {
+      digitalWrite(LED_PIN, 1);
+      return;
+    }
     ledBlinkCount++;
     if(ledBlinkCount > LED_BLINK)
     {
       digitalWrite(LED_PIN, !digitalRead(LED_PIN));
       ledBlinkCount = 0;
     }
-  }
+  } 
+}
 
-  heatControl();
+void heaterTest(int8_t h)
+{
+  if(errorStopped)
+    return;
+    
+  analogWrite(heaters[h], (int)(TEST_POWER*PID_MAX));
+  float t = 0;
+  while(t < TEST_DURATION)
+  {
+    DEBUG_IO.println(getTemperature(h));
+    delay((int)(1000*TEST_INTERVAL));
+    t += TEST_INTERVAL;
+  }
+  analogWrite(heaters[h], 0);
 }
 
 /* *********************************************************************
@@ -461,7 +478,7 @@ inline void enable(int8_t drive)
 
 inline void disable(int8_t drive)
 {
- if(drive < 0 || drive >= DRIVES || errorStopped)
+ if(drive < 0 || drive >= DRIVES)
    return;
  digitalWrite(enables[drive], DISABLE);
 }
@@ -471,21 +488,6 @@ inline void disable(int8_t drive)
    The main loop and command interpreter
 */
 
-void heaterTest(int8_t h)
-{
-  if(errorStopped)
-    return;
-    
-  analogWrite(heaters[h], (int)(TEST_POWER*PID_MAX));
-  float t = 0;
-  while(t < TEST_DURATION)
-  {
-    DEBUG_IO.println(getTemperature(h));
-    delay((int)(1000*TEST_INTERVAL));
-    t += TEST_INTERVAL;
-  }
-  analogWrite(heaters[h], 0);
-}
 
 void command()
 {
@@ -645,8 +647,10 @@ void command()
 
 
 void loop() 
-{ 
+{
   incomming();
+  if(errorStopped)
+    zeroAll();
   tempCheck();   
 } 
 
