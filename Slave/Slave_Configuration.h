@@ -46,6 +46,7 @@
 #define HEATERS { 13, 12 }
 
 #define LED_PIN 27
+#define LED_BLINK 4
 
 // Incoming master-clock interrupt on D16 (PCINT16)
 // Change state on this to step a drive

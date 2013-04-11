@@ -67,11 +67,13 @@ float temp_dState[HOT_ENDS];
 float lastTemp[HOT_ENDS];
 float dt = 0.001*(float)TEMP_INTERVAL;
 
-// Termistor
+// Thermistor
 
 float eBeta[HOT_ENDS]; 
 float eRs[HOT_ENDS];
 float eRInf[HOT_ENDS];
+char dudTempCount[HOT_ENDS];
+char ledBlinkCount;
 
 /* *******************************************************************
 
@@ -96,7 +98,8 @@ void setup()
     
   errorStopped = false;
   inMessage = false;
-
+  ledBlinkCount = 0;
+  
   DEBUG_IO.begin(DEBUG_BAUD);
   DEBUG_IO.println("\nRepRapPro slave controller restarted.");
   debug = false;
@@ -126,6 +129,7 @@ void setup()
     eBeta[i] = TH_BETA;
     eRs[i] = TH_RS;
     eRInf[i] = TH_R_INF;
+    dudTempCount[i] = 0;
   }
   
   if(LED_PIN >= 0)
@@ -327,11 +331,13 @@ inline float getTemperature(int8_t heater)
   r = ABS_ZERO + eBeta[heater]/log( (r*eRs[heater]/(AD_RANGE - r)) /eRInf[heater] );
   currentTemps[heater] = r;
   
-  if(r > HEATER_MAXTEMP)
-    error(true, "max temp exceeded");
-
-  if(r < HEATER_MINTEMP)
-    error(true, "min temp deceeded");
+  if(r > HEATER_MAXTEMP || r < HEATER_MINTEMP)
+    dudTempCount[heater]++;
+  else
+    dudTempCount[heater] = 0;
+ 
+  if(dudTempCount[heater] > 3)
+    error(true, "temp bounds exceeded");
   
   return r;
 }
@@ -414,7 +420,14 @@ inline void tempCheck()
   time += TEMP_INTERVAL;
     
   if(LED_PIN >= 0)
-    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+  {
+    ledBlinkCount++;
+    if(ledBlinkCount > LED_BLINK)
+    {
+      digitalWrite(LED_PIN, !digitalRead(LED_PIN));
+      ledBlinkCount = 0;
+    }
+  }
 
   heatControl();
 }
