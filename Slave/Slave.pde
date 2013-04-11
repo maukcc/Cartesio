@@ -123,9 +123,9 @@ void setup()
     analogWrite(heaters[i], 0);
     temp_iState[i] = 0.0;
     temp_dState[i] = 0.0;
-    lastTemp[i] = -273.0;
-    setTemperature(i, -273.0);
-    currentTemps[i] = -273.0;
+    lastTemp[i] = ABS_ZERO;
+    setTemperature(i, ABS_ZERO);
+    currentTemps[i] = ABS_ZERO;
     eBeta[i] = TH_BETA;
     eRs[i] = TH_RS;
     eRInf[i] = TH_R_INF;
