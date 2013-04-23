@@ -664,6 +664,7 @@ inline void wait_for_all_extruder_temps()
   boolean ok;
   float temp;
   uint8_t e;
+
   for(e = 0; e < EXTRUDERS; e++)
   {
      targets[e] = degTargetHotend(e);
@@ -673,12 +674,25 @@ inline void wait_for_all_extruder_temps()
   long oldTime = millis();
   dudTempCount = 0;
   uint8_t goodCount = 0;
+  uint8_t loopCount = 0;
+    
   while(goodCount < 3)
   {
     if(millis() - oldTime >= 500L)
     {
       oldTime = millis();
       ok = true;
+      if(loopCount > 10)  // Make sure we have the right targets every 5 seconds
+      {
+        for(e = 0; e < EXTRUDERS; e++)
+        {
+         targets[e] = degTargetHotend(e);
+         delay(10);     // Yuk!
+        }
+        loopCount = 0;
+      } else
+        loopCount++;
+        
       for(e = 0; e < EXTRUDERS; e++)
       {
         temp = degHotend(e);
