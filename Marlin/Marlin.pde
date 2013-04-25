@@ -51,7 +51,7 @@
 #include "pins_arduino.h"
 #include "slave_comms.h"
 
-#define VERSION_STRING  "1.0.2 RRP"
+#define VERSION_STRING  "1.0.3 RRP"
 
 // look here for descriptions of gcodes: http://linuxcnc.org/handbook/gcode/g-code.html
 // http://objects.reprap.org/wiki/Mendel_User_Manual:_RepRapGCodes
@@ -872,21 +872,21 @@ void process_commands()
       if((home_all_axes) || (code_seen(axis_codes[X_AXIS]))) 
       {
         HOMEAXIS(X);
-        current_position[X_AXIS] = X_HOME_POS + extruder_x_off[0] - extruder_x_off[active_extruder];
+        current_position[X_AXIS] = X_HOME_POS + extruder_x_off[0] - extruder_x_off[active_extruder] + add_homeing[0];;
         destination[X_AXIS] = current_position[X_AXIS];
       }
 
       if((home_all_axes) || (code_seen(axis_codes[Y_AXIS]))) 
       {
        HOMEAXIS(Y);
-       current_position[Y_AXIS] = Y_HOME_POS + extruder_y_off[0] - extruder_y_off[active_extruder];
+       current_position[Y_AXIS] = Y_HOME_POS + extruder_y_off[0] - extruder_y_off[active_extruder] + add_homeing[1];;
        destination[Y_AXIS] = current_position[Y_AXIS];
       }
       
       if((home_all_axes) || (code_seen(axis_codes[Z_AXIS]))) 
       {
         HOMEAXIS(Z);
-        current_position[Z_AXIS] = Z_HOME_POS + extruder_z_off[0] - extruder_z_off[active_extruder];
+        current_position[Z_AXIS] = Z_HOME_POS + extruder_z_off[0] - extruder_z_off[active_extruder] + add_homeing[2];;
         destination[Z_AXIS] = current_position[Z_AXIS];
       }
       
@@ -895,21 +895,18 @@ void process_commands()
         if(code_value_long() != 0) {
           current_position[X_AXIS]=code_value();
         }
-        current_position[X_AXIS]+=add_homeing[0];
       }
 
       if((home_all_axes) || code_seen(axis_codes[Y_AXIS])) {
         if(code_value_long() != 0) {
           current_position[Y_AXIS]=code_value();
         }
-        current_position[Y_AXIS]+=add_homeing[1];
       }
 
       if((home_all_axes) || code_seen(axis_codes[Z_AXIS])) {
         if(code_value_long() != 0) {
           current_position[Z_AXIS]=code_value();
         }
-        current_position[Z_AXIS]+=add_homeing[2];
       }
       plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
       
@@ -1611,10 +1608,7 @@ void process_commands()
       
          for(int8_t i=0; i < NUM_AXIS; i++) 
          {
-           if(i < 3)
-             temp_position[i] = current_position[i]+add_homeing[i];
-           else
-             temp_position[i] = current_position[i];
+           temp_position[i] = current_position[i];
            destination[i] = temp_position[i];
          }
          next_feedrate = feedrate;
