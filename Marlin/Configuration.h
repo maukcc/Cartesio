@@ -7,10 +7,10 @@
 // Mendel: http://reprap.org/wiki/RepRapPro_Mendel_maintenance
 // Huxley: http://reprap.org/wiki/RepRapPro_Huxley_maintenance
 
-// Uncomment ONE of the next two lines - the one for your RepRap machine
+// Uncomment ONE of the next three lines - the one for your RepRap machine
 //#define REPRAPPRO_HUXLEY
-//#define REPRAPPRO_MENDEL
-#define REPRAPPRO_MENDEL2
+//#define REPRAPPRO_MENDEL //Legacy Mendel
+#define REPRAPPRO_MENDEL2 //Tricolour
 
 // Uncomment ONE of the next three lines - the one for your master controller electronics
 #define REPRAPPRO_MELZI
@@ -31,9 +31,7 @@
 #ifndef REPRAPPRO_HUXLEY
 #ifndef REPRAPPRO_MENDEL
 #ifndef REPRAPPRO_MENDEL2
-#ifndef REPRAPPRO_WALLACE
-#error Uncomment one of #define REPRAPPRO_HUXLEY, REPRAPPRO_MENDEL,  REPRAPPRO_MENDEL2 or REPRAPPRO_WALLACE at the start of the file Configuration.h
-#endif
+#error Uncomment one of #define REPRAPPRO_HUXLEY, REPRAPPRO_MENDEL, or REPRAPPRO_MENDEL2 at the start of the file Configuration.h
 #endif
 #endif
 #endif
@@ -289,7 +287,7 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 #else
 
-#ifdef REPRAPPRO_MENDEL
+#ifdef REPRAPPRO_MENDEL2
 
 #define X_MAX_LENGTH 210  
 #define Y_MAX_LENGTH 210
@@ -317,7 +315,7 @@ const bool Z_ENDSTOPS_INVERTING = false; // set to true to invert the logic of t
 
 // default settings 
 // X, Y, Z, E steps per mm
-#define DEFAULT_AXIS_STEPS_PER_UNIT    {92.635, 92.635, 4000, 660}  // Old RepRapPro extruder
+#define DEFAULT_AXIS_STEPS_PER_UNIT    {92.635, 92.635, 4000, 660}
 
 
 // Defaults changed by the G10 command
